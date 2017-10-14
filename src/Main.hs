@@ -3,12 +3,14 @@
 
 module Main where
 
+import Control.FRPNow.Time (delayTime)
 import Control.Monad.IO.Class
 import Game.Sequoia
+import Game.Sequoia.Color (black)
 import Game.Sequoia.Keyboard
 import Game.Sequoia.Window (mousePos, mouseButtons, MouseButton (ButtonLeft))
-import Game.Sequoia.Color (red)
 import Types
+
 
 drawPanel :: Panel a -> Form
 drawPanel Panel {..} = move (aabbPos panelAABB + aabbSize panelAABB ^* 0.5) panelForm
@@ -23,7 +25,7 @@ panels :: [Panel Int]
 panels = [ Panel (mkPanelPos $ V2 (fromIntegral gameWidth  - fromIntegral x * (r + b))
                                   (fromIntegral gameHeight - fromIntegral y * (r + b)))
                  (8 - (y * 3 + x - 4))
-                 (filled red $ rect r r)
+                 (filled black $ rect r r)
          | x <- [1..3]
          , y <- [1..3]
          ]
@@ -40,18 +42,21 @@ toV2 = uncurry V2 . (fromIntegral *** fromIntegral)
 
 runGame :: N (B Element)
 runGame = do
-  clock   <- getClock
+  clock   <- deltaTime <$> getClock
   mouse   <- mousePos
   buttons <- mouseButtons
+  oldButtons <- sample $ delayTime clock (const False) buttons
 
   (game, _) <- foldmp 0 $ \n -> do
-    dt <- sample $ deltaTime clock
+    dt <- sample clock
     mpos <- toV2 <$> sample mouse
-    left <- ($ ButtonLeft) <$> sample buttons
+    left' <- ($ ButtonLeft) <$> sample buttons
+    left  <- ($ ButtonLeft) <$> sample oldButtons
 
-    when left . liftIO
-              . print
-              $ getPanelAction panels mpos
+    when (left' && not left)
+         . liftIO
+         . print
+         $ getPanelAction panels mpos
 
     pure $ n + 1
 
