@@ -3,6 +3,7 @@
 
 module Main where
 
+import Map (maps)
 import Control.FRPNow.Time (delayTime)
 import Control.Monad.IO.Class
 import Game.Sequoia
@@ -35,7 +36,8 @@ panels = [ Panel (mkPanelPos $ V2 (fromIntegral gameWidth  - fromIntegral x * (r
     mkPanelPos v2 = AABB v2 $ V2 r r
 
 draw :: Form
-draw = group $ drawPanel <$> panels
+draw = group $ fromJust (lookup "mindfuck" maps)
+             : (drawPanel <$> panels)
 
 toV2 :: (Int, Int) -> V2
 toV2 = uncurry V2 . (fromIntegral *** fromIntegral)
