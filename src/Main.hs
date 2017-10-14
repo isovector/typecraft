@@ -6,7 +6,7 @@ module Main where
 import Control.Monad.IO.Class
 import Game.Sequoia
 import Game.Sequoia.Keyboard
-import Game.Sequoia.Window (mousePos)
+import Game.Sequoia.Window (mousePos, mouseButtons, MouseButton (ButtonLeft))
 import Game.Sequoia.Color (red)
 import Types
 
@@ -40,14 +40,18 @@ toV2 = uncurry V2 . (fromIntegral *** fromIntegral)
 
 runGame :: N (B Element)
 runGame = do
-  clock <- getClock
-  mouse <- mousePos
+  clock   <- getClock
+  mouse   <- mousePos
+  buttons <- mouseButtons
 
   (game, _) <- foldmp 0 $ \n -> do
     dt <- sample $ deltaTime clock
     mpos <- toV2 <$> sample mouse
+    left <- ($ ButtonLeft) <$> sample buttons
 
-    liftIO . print $ getPanelAction panels mpos
+    when left . liftIO
+              . print
+              $ getPanelAction panels mpos
 
     pure $ n + 1
 
