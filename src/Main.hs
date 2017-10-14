@@ -35,21 +35,24 @@ panels = [ Panel (mkPanelPos $ V2 (fromIntegral gameWidth  - fromIntegral x * (r
     r = 32
     mkPanelPos v2 = AABB v2 $ V2 r r
 
-draw :: Form
-draw = group $ fromJust (lookup "mindfuck" maps)
-             : (drawPanel <$> panels)
+draw :: V2 -> Form
+draw cam = group
+         $ (move (-cam) $ fromJust (lookup "mindfuck" maps))
+         : (drawPanel <$> panels)
 
 toV2 :: (Int, Int) -> V2
 toV2 = uncurry V2 . (fromIntegral *** fromIntegral)
 
 runGame :: N (B Element)
 runGame = do
-  clock   <- deltaTime <$> getClock
-  mouse   <- mousePos
-  buttons <- mouseButtons
+  clock      <- deltaTime <$> getClock
+  keyboard   <- getKeyboard
+  mouse      <- mousePos
+  buttons    <- mouseButtons
   oldButtons <- sample $ delayTime clock (const False) buttons
 
-  (game, _) <- foldmp 0 $ \n -> do
+  (game, _) <- foldmp (V2 0 0) $ \cam -> do
+    arrs <- sample $ arrows keyboard
     dt <- sample clock
     mpos <- toV2 <$> sample mouse
     left' <- ($ ButtonLeft) <$> sample buttons
@@ -60,13 +63,13 @@ runGame = do
          . print
          $ getPanelAction panels mpos
 
-    pure $ n + 1
+    pure $ cam + arrs ^* (10 * 16 * dt)
 
   pure $ do
-    n <- sample game
+    cam <- sample game
     pure . collage gameWidth gameHeight
          . pure
-         $ draw
+         $ draw cam
 
 main :: IO ()
 main = play config (const runGame) pure
