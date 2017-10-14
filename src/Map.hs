@@ -11,19 +11,21 @@ importScale :: Double
 importScale = 1
 
 
-parseLayers :: Maybe (Tileset, FilePath) -> [Layer] -> Form
-parseLayers tileset ls = group tiledata
+parseLayers :: Maybe (Tileset, FilePath) -> [Layer] -> Int -> Int -> [Form]
+parseLayers tileset ls = tiledata
   where
     tiledata       = parseTileset tileset $ getLayer "tiles"
     getLayer name  = listToMaybe $ filter ((== name) . layerName) ls
 
 
 
-parseTileset :: Maybe (Tileset, FilePath) -> Maybe Layer -> [Form]
-parseTileset (Just (ts, fp)) (Just Layer {layerData}) = fmap toTile $ M.toList layerData
+parseTileset :: Maybe (Tileset, FilePath) -> Maybe Layer -> Int -> Int -> [Form]
+parseTileset (Just (ts, fp)) (Just Layer {layerData}) x y = fmap toTile
+                                                          . maybeToList
+                                                          $ M.lookup (x, y) layerData
   where
-    toTile :: ((Int, Int), Tile) -> Form
-    toTile ((x, y), (tileGid -> t))
+    toTile :: Tile -> Form
+    toTile (tileGid -> t)
       = move (V2 (fromIntegral x) (fromIntegral y) ^* (16 * importScale))
       . group
       . pure
@@ -38,10 +40,10 @@ parseTileset (Just (ts, fp)) (Just Layer {layerData}) = fmap toTile $ M.toList l
     stride = let img = head $ tsImages ts
               in iWidth img `div` 16
 
-parseTileset _ _ = []
+parseTileset _ _ _ _ = []
 
 
-maps :: [(String, Form)]
+maps :: [(String, Int -> Int -> [Form])]
 maps = zip names
           $ map (\x ->
               parseLayers (fmap getTileset . listToMaybe $ mapTilesets x)

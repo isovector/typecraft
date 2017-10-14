@@ -35,9 +35,20 @@ panels = [ Panel (mkPanelPos $ V2 (fromIntegral gameWidth  - fromIntegral x * (r
     r = 32
     mkPanelPos v2 = AABB v2 $ V2 r r
 
+drawMap :: (Int -> Int -> [Form]) -> V2 -> Form
+drawMap m cam = move (-cam)
+              . group
+              $ [ form
+                | x <- [0 .. (gameWidth  `div` 16)]
+                , y <- [0 .. (gameHeight `div` 16)]
+                , form <- m (x + d ^. _x) (y + d ^. _y)
+                ]
+  where
+    d = floor <$> cam ^* (1 / 16)
+
 draw :: V2 -> Form
 draw cam = group
-         $ (move (-cam) $ fromJust (lookup "mindfuck" maps))
+         $ drawMap (fromJust (lookup "mindfuck" maps)) cam
          : (drawPanel <$> panels)
 
 toV2 :: (Int, Int) -> V2
