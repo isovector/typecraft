@@ -18,8 +18,8 @@ myCC :: Building
 myCC = Building
   { _bPrototype = commandCenter
   , _bStats = UnitStats 1500
-            $ V2 (10 * fromIntegral tileWidth)
-                 (10 * fromIntegral tileHeight)
+            $ V2 (10 * fi tileWidth)
+                 (10 * fi tileHeight)
   }
 
 drawBuilding :: Building -> Form
@@ -32,8 +32,8 @@ drawPanel Panel {..} =
   move (_aabbPos _panelAABB + _aabbSize _panelAABB ^* 0.5) _panelForm
 
 panels :: [Panel Int]
-panels = [ Panel (mkPanelPos $ V2 (fromIntegral gameWidth  - fromIntegral x * (r + b))
-                                  (fromIntegral gameHeight - fromIntegral y * (r + b)))
+panels = [ Panel (mkPanelPos $ V2 (fi gameWidth  - fi x * (r + b))
+                                  (fi gameHeight - fi y * (r + b)))
                  (8 - (y * 3 + x - 4))
                  (filled black $ rect r r)
          | x <- [1..3]
@@ -52,12 +52,13 @@ drawMap m cam = group
                 , form <- m (x + d ^. _x) (y + d ^. _y)
                 ]
   where
-    d = floor <$> cam * V2 (1 / fromIntegral tileWidth)
-                           (1 / fromIntegral tileHeight)
+    d = floor <$> cam * V2 (1 / fi tileWidth)
+                           (1 / fi tileHeight)
 
-draw :: V2 -> Form
-draw cam = group
+draw :: V2 -> V2 -> Form
+draw mpos cam = group
          $ onmap
+         : drawInputState mpos (PlaceBuildingState commandCenter)
          : (drawPanel <$> panels)
   where
     onmap = move (-cam)
@@ -66,8 +67,28 @@ draw cam = group
           : drawBuilding myCC
           : []
 
+alignToGrid :: V2 -> V2
+alignToGrid pos = fmap fi d
+                * V2 (fi tileWidth) (fi tileHeight)
+  where
+    d = floor <$> pos * V2 (1 / fi tileWidth)
+                           (1 / fi tileHeight)
+
+drawInputState :: V2 -> InputState -> Form
+drawInputState _    NormalState = group []
+drawInputState mpos (PlaceBuildingState up)
+  = move (alignToGrid mpos)
+  . group $
+    [ toForm $ view upGfx up
+    , let w = up ^. upWidth  . to fi
+          h = up ^. upHeight . to fi
+       in move (V2 (w / 2) (h / 2))
+        . filled (rgba 0 1 0 0.5)
+        $ rect w h
+    ]
+
 toV2 :: (Int, Int) -> V2
-toV2 = uncurry V2 . (fromIntegral *** fromIntegral)
+toV2 = uncurry V2 . (fi *** fi)
 
 runGame :: N (B Element)
 runGame = do
@@ -78,9 +99,9 @@ runGame = do
   oldButtons <- sample $ delayTime clock (const False) buttons
 
   (game, _) <- foldmp (V2 0 0) $ \cam -> do
-    arrs <- sample $ arrows keyboard
-    dt <- sample clock
-    mpos <- toV2 <$> sample mouse
+    arrs  <- sample $ arrows keyboard
+    dt    <- sample clock
+    mpos  <- toV2 <$> sample mouse
     left' <- ($ ButtonLeft) <$> sample buttons
     left  <- ($ ButtonLeft) <$> sample oldButtons
 
@@ -93,9 +114,10 @@ runGame = do
 
   pure $ do
     cam <- sample game
+    mpos  <- toV2 <$> sample mouse
     pure . collage gameWidth gameHeight
          . pure
-         $ draw cam
+         $ draw mpos cam
 
 main :: IO ()
 main = play config (const runGame) pure

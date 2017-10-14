@@ -17,6 +17,8 @@ import BasePrelude hiding (rotate, group, (&), uncons, index, lazy, throw, Handl
 import Linear.Vector hiding (E (..))
 import Game.Sequoia
 
+fi :: (Num b, Integral a) => a -> b
+fi = fromIntegral
 
 data AABB = AABB
   { _aabbPos  :: V2
@@ -43,6 +45,28 @@ getPanelAction ps pos = fmap _panelAction
                       . listToMaybe
                       $ filter (flip inAABB pos . _panelAABB) ps
 
+data InputState
+  = NormalState
+  | PlaceBuildingState UnitPrototype
+  deriving (Eq, Show)
+
+
+data State = State
+  { _sLocalState :: LocalState
+  , _sGameState  :: GameState
+  } deriving (Eq, Show)
+
+
+data LocalState = LocalState
+  { _lsInputState :: InputState
+  , _lsCamera     :: V2
+  , _lsPlayer     :: Int
+  } deriving (Eq, Show)
+
+data GameState = GameState
+  { _gsPlayers :: [Player]
+  } deriving (Eq, Show)
+
 
 data Player = Player
   { _pColor :: Color
@@ -64,6 +88,8 @@ data Building = Building
 data UnitPrototype = UnitPrototype
   { _upMaxHitpoints :: Int
   , _upGfx          :: Element
+  , _upWidth        :: Int
+  , _upHeight       :: Int
   } deriving (Eq, Show)
 
 data UnitStats = UnitStats
@@ -75,7 +101,9 @@ data UnitStats = UnitStats
 commandCenter :: UnitPrototype
 commandCenter = UnitPrototype
   { _upMaxHitpoints = 1500
-  , _upGfx = colorCorrectedImage "assets/cc.png" (rgb 0 1 0)
+  , _upGfx          = colorCorrectedImage "assets/cc.png" (rgb 0 1 0)
+  , _upWidth        = 64
+  , _upHeight       = 48
   }
 
 
@@ -84,4 +112,8 @@ makeLenses ''PlayerOwned
 makeLenses ''Building
 makeLenses ''UnitPrototype
 makeLenses ''UnitStats
+makePrisms ''InputState
+makePrisms ''LocalState
+makePrisms ''GameState
+makePrisms ''State
 
