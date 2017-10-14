@@ -3,24 +3,33 @@
 
 module Main where
 
-import Map (maps)
+import Constants
 import Control.FRPNow.Time (delayTime)
 import Control.Monad.IO.Class
 import Game.Sequoia
 import Game.Sequoia.Color (black)
 import Game.Sequoia.Keyboard
 import Game.Sequoia.Window (mousePos, mouseButtons, MouseButton (ButtonLeft))
+import Map (maps)
 import Types
 
 
+myCC :: Building
+myCC = Building
+  { _bPrototype = commandCenter
+  , _bStats = UnitStats 1500
+            $ V2 (10 * fromIntegral tileWidth)
+                 (10 * fromIntegral tileHeight)
+  }
+
+drawBuilding :: Building -> Form
+drawBuilding b = move (b ^. bStats . usPos)
+               . toForm
+               $ b ^. bPrototype . upGfx
+
 drawPanel :: Panel a -> Form
-drawPanel Panel {..} = move (aabbPos panelAABB + aabbSize panelAABB ^* 0.5) panelForm
-
-gameWidth :: Int
-gameWidth = 800
-
-gameHeight :: Int
-gameHeight = 600
+drawPanel Panel {..} =
+  move (_aabbPos _panelAABB + _aabbSize _panelAABB ^* 0.5) _panelForm
 
 panels :: [Panel Int]
 panels = [ Panel (mkPanelPos $ V2 (fromIntegral gameWidth  - fromIntegral x * (r + b))
@@ -36,20 +45,26 @@ panels = [ Panel (mkPanelPos $ V2 (fromIntegral gameWidth  - fromIntegral x * (r
     mkPanelPos v2 = AABB v2 $ V2 r r
 
 drawMap :: (Int -> Int -> [Form]) -> V2 -> Form
-drawMap m cam = move (-cam)
-              . group
+drawMap m cam = group
               $ [ form
-                | x <- [0 .. (gameWidth  `div` 16)]
-                , y <- [0 .. (gameHeight `div` 16)]
+                | x <- [0 .. (gameWidth  `div` tileWidth)]
+                , y <- [0 .. (gameHeight `div` tileHeight)]
                 , form <- m (x + d ^. _x) (y + d ^. _y)
                 ]
   where
-    d = floor <$> cam ^* (1 / 16)
+    d = floor <$> cam * V2 (1 / fromIntegral tileWidth)
+                           (1 / fromIntegral tileHeight)
 
 draw :: V2 -> Form
 draw cam = group
-         $ drawMap (fromJust (lookup "mindfuck" maps)) cam
+         $ onmap
          : (drawPanel <$> panels)
+  where
+    onmap = move (-cam)
+          . group
+          $ drawMap (fromJust (lookup "mindfuck" maps)) cam
+          : drawBuilding myCC
+          : []
 
 toV2 :: (Int, Int) -> V2
 toV2 = uncurry V2 . (fromIntegral *** fromIntegral)
@@ -85,6 +100,6 @@ runGame = do
 main :: IO ()
 main = play config (const runGame) pure
   where
-    config = EngineConfig (gameWidth, gameHeight) "IWMAG"
-           $ rgb 0.8 0.8 0.8
+    config = EngineConfig (gameWidth, gameHeight) "Typecraft"
+           $ rgb 0.25 0.55 0.95
 

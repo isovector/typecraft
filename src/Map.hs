@@ -3,13 +3,10 @@
 
 module Map where
 
+import           Constants
 import qualified Data.Map as M
-import Types
-import Data.Tiled
-
-importScale :: Double
-importScale = 1
-
+import           Data.Tiled
+import           Types
 
 parseLayers :: Maybe (Tileset, FilePath) -> [Layer] -> Int -> Int -> [Form]
 parseLayers tileset ls = tiledata
@@ -26,19 +23,21 @@ parseTileset (Just (ts, fp)) (Just Layer {layerData}) x y = fmap toTile
   where
     toTile :: Tile -> Form
     toTile (tileGid -> t)
-      = move (V2 (fromIntegral x) (fromIntegral y) ^* (16 * importScale))
+      = move ( V2 (fromIntegral x) (fromIntegral y)
+             * V2 (fromIntegral tileWidth) (fromIntegral tileHeight)
+             )
       . group
       . pure
-      . scale (importScale + 0.01)
+      . scale (1.025)
       . toForm
       $ croppedImage (getCrop t) fp
 
     getCrop :: Word32 -> Crop
     getCrop (subtract 1 . fromIntegral -> g) =
-      Crop ((g `mod` stride) * 16) ((g `div` stride) * 16) 16 16
+      Crop ((g `mod` stride) * tileWidth) ((g `div` stride) * tileHeight) tileWidth tileHeight
 
     stride = let img = head $ tsImages ts
-              in iWidth img `div` 16
+              in iWidth img `div` tileWidth
 
 parseTileset _ _ _ _ = []
 
