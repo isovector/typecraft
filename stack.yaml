@@ -1,0 +1,18 @@
+flags: {}
+packages:
+  - '.'
+  - '../sequoia'
+  - '../bones'
+  - extra-dep: true
+    location:
+      git: https://github.com/isovector/th-dict-discovery.git
+      commit: d6c8c77abc87b364b0ac6568d6aec6798a635340
+  - extra-dep: true
+    location:
+      git: https://github.com/isovector/htiled.git
+      commit: bb18e7dd85b3f1fe8f9e339f8e6b8ea942bbe361
+
+extra-deps:
+  - sdl2-2.1.3
+  - frpnow-0.18
+resolver: lts-7.1
