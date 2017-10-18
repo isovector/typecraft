@@ -16,6 +16,7 @@ import Control.Lens
 import BasePrelude hiding (rotate, group, (&), uncons, index, lazy, throw, Handler, runHandlers)
 import Linear.Vector hiding (E (..))
 import Game.Sequoia
+import Game.Sequoia.Keyboard (Key)
 
 fi :: (Num b, Integral a) => a -> b
 fi = fromIntegral
@@ -37,6 +38,7 @@ data Panel a = Panel
   { _panelAABB   :: AABB
   , _panelAction :: a
   , _panelForm   :: Form
+  , _panelHotKey :: Maybe Key
   } deriving (Eq, Show, Functor)
 
 
@@ -56,6 +58,11 @@ data State = State
   , _sGameState  :: GameState
   } deriving (Eq, Show)
 
+defState :: State
+defState = State
+  { _sLocalState = defLocalState
+  , _sGameState = defGameState
+  }
 
 data LocalState = LocalState
   { _lsInputState :: InputState
@@ -63,9 +70,21 @@ data LocalState = LocalState
   , _lsPlayer     :: Int
   } deriving (Eq, Show)
 
+defLocalState :: LocalState
+defLocalState = LocalState
+  { _lsInputState = NormalState
+  , _lsCamera = V2 0 0
+  , _lsPlayer = 0
+  }
+
 data GameState = GameState
   { _gsPlayers :: [Player]
   } deriving (Eq, Show)
+
+defGameState :: GameState
+defGameState = GameState
+  { _gsPlayers = []
+  }
 
 
 data Player = Player
@@ -98,6 +117,13 @@ data UnitStats = UnitStats
   } deriving (Eq, Show, Ord)
 
 
+data Command
+  = DoNothing
+  | PlaceBuilding UnitPrototype
+  | ConfirmBuilding V2
+  deriving (Eq, Show)
+
+
 commandCenter :: UnitPrototype
 commandCenter = UnitPrototype
   { _upMaxHitpoints = 1500
@@ -113,7 +139,7 @@ makeLenses ''Building
 makeLenses ''UnitPrototype
 makeLenses ''UnitStats
 makePrisms ''InputState
-makePrisms ''LocalState
-makePrisms ''GameState
-makePrisms ''State
+makeLenses ''LocalState
+makeLenses ''GameState
+makeLenses ''State
 

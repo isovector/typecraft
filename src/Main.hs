@@ -3,16 +3,19 @@
 
 module Main where
 
+import Control.Monad.Reader.Class (ask)
+import Control.Monad.Writer
 import Constants
 import Control.FRPNow.Time (delayTime)
-import Control.Monad.IO.Class
 import Game.Sequoia
 import Game.Sequoia.Color (black)
 import Game.Sequoia.Keyboard
 import Game.Sequoia.Window (mousePos, mouseButtons, MouseButton (ButtonLeft))
 import Map (maps)
-import Types
+import Types hiding (left, left')
 
+
+type Game = WriterT [Command] ((->) State)
 
 myCC :: Building
 myCC = Building
@@ -22,57 +25,70 @@ myCC = Building
                  (10 * fi tileHeight)
   }
 
+
 drawBuilding :: Building -> Form
 drawBuilding b = move (b ^. bStats . usPos)
                . toForm
                $ b ^. bPrototype . upGfx
 
+
 drawPanel :: Panel a -> Form
 drawPanel Panel {..} =
   move (_aabbPos _panelAABB + _aabbSize _panelAABB ^* 0.5) _panelForm
 
-panels :: [Panel Int]
+
+panels :: [Panel Command]
 panels = [ Panel (mkPanelPos $ V2 (fi gameWidth  - fi x * (r + b))
                                   (fi gameHeight - fi y * (r + b)))
-                 (8 - (y * 3 + x - 4))
+                 (if x == 3 && y == 3
+                    then PlaceBuilding commandCenter
+                    else DoNothing)
                  (filled black $ rect r r)
-         | x <- [1..3]
-         , y <- [1..3]
+                 (if x == 3 && y == 3
+                    then Just CKey
+                    else Nothing)
+         | x :: Int <- [1..3]
+         , y :: Int <- [1..3]
          ]
   where
     b = 4
     r = 32
     mkPanelPos v2 = AABB v2 $ V2 r r
 
+
 drawMap :: (Int -> Int -> [Form]) -> V2 -> Form
 drawMap m cam = group
-              $ [ form
+              $ [ frm
                 | x <- [0 .. (gameWidth  `div` tileWidth)]
                 , y <- [0 .. (gameHeight `div` tileHeight)]
-                , form <- m (x + d ^. _x) (y + d ^. _y)
+                , frm <- m (x + d ^. _x) (y + d ^. _y)
                 ]
   where
     d = floor <$> cam * V2 (1 / fi tileWidth)
                            (1 / fi tileHeight)
 
-draw :: V2 -> V2 -> Form
-draw mpos cam = group
+
+draw :: V2 -> State -> Form
+draw mpos state = group
          $ onmap
-         : drawInputState mpos (PlaceBuildingState commandCenter)
+         : drawInputState mpos (state ^. sLocalState . lsInputState)
          : (drawPanel <$> panels)
   where
+    cam = state ^. sLocalState . lsCamera
     onmap = move (-cam)
           . group
           $ drawMap (fromJust (lookup "mindfuck" maps)) cam
           : drawBuilding myCC
           : []
 
+
 alignToGrid :: V2 -> V2
 alignToGrid pos = fmap fi d
                 * V2 (fi tileWidth) (fi tileHeight)
   where
-    d = floor <$> pos * V2 (1 / fi tileWidth)
-                           (1 / fi tileHeight)
+    d = floor @_ @Int <$> pos * V2 (1 / fi tileWidth)
+                                   (1 / fi tileHeight)
+
 
 drawInputState :: V2 -> InputState -> Form
 drawInputState _    NormalState = group []
@@ -87,8 +103,10 @@ drawInputState mpos (PlaceBuildingState up)
         $ rect w h
     ]
 
+
 toV2 :: (Int, Int) -> V2
 toV2 = uncurry V2 . (fi *** fi)
+
 
 runGame :: N (B Element)
 runGame = do
@@ -98,26 +116,66 @@ runGame = do
   buttons    <- mouseButtons
   oldButtons <- sample $ delayTime clock (const False) buttons
 
-  (game, _) <- foldmp (V2 0 0) $ \cam -> do
+  (game, _) <- foldmp defState $ \state -> do
     arrs  <- sample $ arrows keyboard
     dt    <- sample clock
     mpos  <- toV2 <$> sample mouse
     left' <- ($ ButtonLeft) <$> sample buttons
     left  <- ($ ButtonLeft) <$> sample oldButtons
 
-    when (left' && not left)
-         . liftIO
-         . print
-         $ getPanelAction panels mpos
+    hks <- fmap (mapMaybe id) . for panels $ \p ->
+      fmap join . for (_panelHotKey p) $ \hk -> do
+        down <- sample $ isDown keyboard hk
+        if down
+           then pure . Just $  _panelAction p
+           else pure Nothing
 
-    pure $ cam + arrs ^* (10 * 16 * dt)
+    -- pure $ cam + arrs ^* (10 * 16 * dt)
+    pure . runUpdateGame state $ updateGame mpos left' left dt arrs >> tell hks
 
   pure $ do
-    cam <- sample game
-    mpos  <- toV2 <$> sample mouse
+    state  <- sample game
+    mpos <- toV2 <$> sample mouse
     pure . collage gameWidth gameHeight
          . pure
-         $ draw mpos cam
+         $ draw mpos state
+
+
+updateGame :: V2 -> Bool -> Bool -> Time -> V2 -> Game ()
+updateGame mpos left' left _ _ = do
+  s <- ask
+
+  case s ^. sLocalState . lsInputState of
+    NormalState -> do
+      when (left' && not left)
+          . tell
+          . maybeToList
+          $ getPanelAction panels mpos
+
+    PlaceBuildingState _ -> do
+      when (left' && not left)
+          . tell
+          . pure
+          . ConfirmBuilding
+          $ V2 0 0
+
+
+runUpdateGame :: State -> Game () -> State
+runUpdateGame s w
+  = ($ s)
+  . appEndo
+  . foldMap (Endo . runCommand)
+  . ($ s)
+  $ execWriterT w
+
+
+
+runCommand :: Command -> State -> State
+runCommand DoNothing           = id
+runCommand (PlaceBuilding pt)  = sLocalState . lsInputState .~ PlaceBuildingState pt
+runCommand (ConfirmBuilding _) = sLocalState . lsInputState .~ NormalState
+
+
 
 main :: IO ()
 main = play config (const runGame) pure
