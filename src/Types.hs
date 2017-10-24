@@ -1,8 +1,11 @@
-{-# LANGUAGE DeriveFunctor     #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE RecordWildCards   #-}
-{-# LANGUAGE StrictData        #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE DeriveDataTypeable   #-}
+{-# LANGUAGE DeriveFunctor        #-}
+{-# LANGUAGE NoImplicitPrelude    #-}
+{-# LANGUAGE RecordWildCards      #-}
+{-# LANGUAGE StandaloneDeriving   #-}
+{-# LANGUAGE StrictData           #-}
+{-# LANGUAGE TemplateHaskell      #-}
+{-# OPTIONS_GHC -fno-warn-orphans #-}
 
 module Types
   ( module Types
@@ -16,10 +19,14 @@ import Control.Lens
 import BasePrelude hiding (rotate, group, (&), uncons, index, lazy, throw, Handler, runHandlers)
 import Linear.Vector hiding (E (..))
 import Game.Sequoia
+import Game.Sequoia.Color (Color (..), red)
 import Game.Sequoia.Keyboard (Key)
 
 fi :: (Num b, Integral a) => a -> b
 fi = fromIntegral
+
+instance Data Element
+deriving instance Data Color
 
 data AABB = AABB
   { _aabbPos  :: V2
@@ -50,13 +57,13 @@ getPanelAction ps pos = fmap _panelAction
 data InputState
   = NormalState
   | PlaceBuildingState UnitPrototype
-  deriving (Eq, Show)
+  deriving (Eq, Show, Data)
 
 
 data State = State
   { _sLocalState :: LocalState
   , _sGameState  :: GameState
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Data)
 
 defState :: State
 defState = State
@@ -68,7 +75,7 @@ data LocalState = LocalState
   { _lsInputState :: InputState
   , _lsCamera     :: V2
   , _lsPlayer     :: Int
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Data)
 
 defLocalState :: LocalState
 defLocalState = LocalState
@@ -79,29 +86,35 @@ defLocalState = LocalState
 
 data GameState = GameState
   { _gsPlayers :: [Player]
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Data)
 
 defGameState :: GameState
 defGameState = GameState
-  { _gsPlayers = []
+  { _gsPlayers = [defPlayer]
   }
 
 
 data Player = Player
   { _pColor :: Color
   , _pOwned :: PlayerOwned
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Data)
+
+defPlayer :: Player
+defPlayer = Player
+  { _pColor = red
+  , _pOwned = PlayerOwned []
+  }
 
 
 data PlayerOwned = PlayerOwned
   { _poBuildings :: [Building]
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Data)
 
 
 data Building = Building
   { _bPrototype :: UnitPrototype
   , _bStats     :: UnitStats
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Data)
 
 
 data UnitPrototype = UnitPrototype
@@ -109,18 +122,25 @@ data UnitPrototype = UnitPrototype
   , _upGfx          :: Element
   , _upWidth        :: Int
   , _upHeight       :: Int
-  } deriving (Eq, Show)
+  } deriving (Eq, Show, Data)
 
 data UnitStats = UnitStats
   { _usHP  :: Int
   , _usPos :: V2
-  } deriving (Eq, Show, Ord)
+  } deriving (Eq, Show, Ord, Data)
+
+
+prototypeToStats :: V2 -> UnitPrototype -> UnitStats
+prototypeToStats pos pt = UnitStats
+  { _usHP = _upMaxHitpoints pt
+  , _usPos = pos
+  }
 
 
 data Command
   = DoNothing
   | PlaceBuilding UnitPrototype
-  | ConfirmBuilding V2
+  | ConfirmBuilding UnitPrototype V2
   deriving (Eq, Show)
 
 

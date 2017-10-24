@@ -3,6 +3,7 @@
 
 module Main where
 
+import Data.Data.Lens (biplate)
 import Control.Monad.Reader.Class (ask)
 import Control.Monad.Writer
 import Constants
@@ -68,6 +69,9 @@ drawMap m cam = group
                            (1 / fi tileHeight)
 
 
+getBuildings :: State -> [Building]
+getBuildings s = s ^.. biplate
+
 draw :: V2 -> State -> Form
 draw mpos state = group
          $ onmap
@@ -78,8 +82,7 @@ draw mpos state = group
     onmap = move (-cam)
           . group
           $ drawMap (fromJust (lookup "mindfuck" maps)) cam
-          : drawBuilding myCC
-          : []
+          : (drawBuilding <$> getBuildings state)
 
 
 alignToGrid :: V2 -> V2
@@ -130,8 +133,9 @@ runGame = do
            then pure . Just $  _panelAction p
            else pure Nothing
 
-    -- pure $ cam + arrs ^* (10 * 16 * dt)
-    pure . runUpdateGame state $ updateGame mpos left' left dt arrs >> tell hks
+    pure $
+      (runUpdateGame state $ updateGame mpos left' left dt >> tell hks)
+      & sLocalState . lsCamera %~ (+ arrs ^* (10 * 16 * dt))
 
   pure $ do
     state  <- sample game
@@ -141,8 +145,8 @@ runGame = do
          $ draw mpos state
 
 
-updateGame :: V2 -> Bool -> Bool -> Time -> V2 -> Game ()
-updateGame mpos left' left _ _ = do
+updateGame :: V2 -> Bool -> Bool -> Time -> Game ()
+updateGame mpos left' left _ = do
   s <- ask
 
   case s ^. sLocalState . lsInputState of
@@ -152,12 +156,13 @@ updateGame mpos left' left _ _ = do
           . maybeToList
           $ getPanelAction panels mpos
 
-    PlaceBuildingState _ -> do
+    PlaceBuildingState pt -> do
       when (left' && not left)
           . tell
           . pure
-          . ConfirmBuilding
-          $ V2 0 0
+          . ConfirmBuilding pt
+          $ alignToGrid mpos
+
 
 
 runUpdateGame :: State -> Game () -> State
@@ -173,7 +178,10 @@ runUpdateGame s w
 runCommand :: Command -> State -> State
 runCommand DoNothing           = id
 runCommand (PlaceBuilding pt)  = sLocalState . lsInputState .~ PlaceBuildingState pt
-runCommand (ConfirmBuilding _) = sLocalState . lsInputState .~ NormalState
+runCommand (ConfirmBuilding pt pos) = \s ->
+  s & sLocalState . lsInputState .~ NormalState
+    & sGameState . gsPlayers . ix (s ^. sLocalState . lsPlayer) . pOwned . poBuildings %~
+      \bs -> (Building { _bPrototype = pt, _bStats = prototypeToStats pos pt} ) : bs
 
 
 
