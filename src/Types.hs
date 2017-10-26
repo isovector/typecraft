@@ -154,6 +154,14 @@ commandCenter = UnitPrototype
   , _upHeight       = 48
   }
 
+nothing :: UnitPrototype
+nothing = UnitPrototype
+  { _upMaxHitpoints = 1500
+  , _upGfx          = collage 0 0 []
+  , _upWidth        = 16
+  , _upHeight       = 16
+  }
+
 
 makeLenses ''Player
 makeLenses ''PlayerOwned

@@ -43,13 +43,9 @@ drawPanel Panel {..} =
 panels :: [Panel Command]
 panels = [ Panel (mkPanelPos $ V2 (fi gameWidth  - fi x * (r + b))
                                   (fi gameHeight - fi y * (r + b)))
-                 (if x == 3 && y == 3
-                    then PlaceBuilding commandCenter
-                    else DoNothing)
+                 (fst $ what x y)
                  (filled black $ rect r r)
-                 (if x == 3 && y == 3
-                    then Just CKey
-                    else Nothing)
+                 (snd $ what x y)
          | x :: Int <- [1..3]
          , y :: Int <- [1..3]
          ]
@@ -57,6 +53,10 @@ panels = [ Panel (mkPanelPos $ V2 (fi gameWidth  - fi x * (r + b))
     b = 4
     r = 32
     mkPanelPos v2 = AABB v2 $ V2 r r
+
+    what 3 3 = (PlaceBuilding commandCenter, Just CKey)
+    what 2 2 = (PlaceBuilding nothing, Just NKey)
+    what _ _ = (DoNothing, Nothing)
 
 
 drawMap :: (Int -> Int -> [Form]) -> V2 -> Form
@@ -79,7 +79,7 @@ draw mpos state = group $
          ( onmap
          : drawInputState mpos (state ^. sLocalState . lsInputState)
          : (drawPanel <$> panels))
-         ++ debugDrawQuad tree
+         -- ++ debugDrawQuad tree
          ++ debugDrawConnectivity tree
   where
     tree = buildQuadTree (100, 100) $ getBuildings state
