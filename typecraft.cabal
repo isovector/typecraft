@@ -36,9 +36,11 @@ executable typecraft
                , lens
                , linear
                , mtl
+               , recursion-schemes
                , sequoia
                , th-dict-discovery
                , transformers
+               , QuadTree
   hs-source-dirs:      src
   default-language:    Haskell2010
 

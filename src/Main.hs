@@ -3,6 +3,7 @@
 
 module Main where
 
+import Collision
 import Data.Data.Lens (biplate)
 import Control.Monad.Reader.Class (ask)
 import Control.Monad.Writer
@@ -14,6 +15,7 @@ import Game.Sequoia.Keyboard
 import Game.Sequoia.Window (mousePos, mouseButtons, MouseButton (ButtonLeft))
 import Map (maps)
 import Types hiding (left, left')
+import Utils (alignToGrid)
 
 
 type Game = WriterT [Command] ((->) State)
@@ -73,24 +75,19 @@ getBuildings :: State -> [Building]
 getBuildings s = s ^.. biplate
 
 draw :: V2 -> State -> Form
-draw mpos state = group
-         $ onmap
+draw mpos state = group $
+         ( onmap
          : drawInputState mpos (state ^. sLocalState . lsInputState)
-         : (drawPanel <$> panels)
+         : (drawPanel <$> panels))
+         ++ debugDrawQuad tree
+         ++ debugDrawConnectivity tree
   where
+    tree = buildQuadTree (100, 100) $ getBuildings state
     cam = state ^. sLocalState . lsCamera
     onmap = move (-cam)
           . group
           $ drawMap (fromJust (lookup "mindfuck" maps)) cam
           : (drawBuilding <$> getBuildings state)
-
-
-alignToGrid :: V2 -> V2
-alignToGrid pos = fmap fi d
-                * V2 (fi tileWidth) (fi tileHeight)
-  where
-    d = floor @_ @Int <$> pos * V2 (1 / fi tileWidth)
-                                   (1 / fi tileHeight)
 
 
 drawInputState :: V2 -> InputState -> Form
@@ -138,8 +135,8 @@ runGame = do
       & sLocalState . lsCamera %~ (+ arrs ^* (10 * 16 * dt))
 
   pure $ do
-    state  <- sample game
-    mpos <- toV2 <$> sample mouse
+    state <- sample game
+    mpos  <- toV2 <$> sample mouse
     pure . collage gameWidth gameHeight
          . pure
          $ draw mpos state

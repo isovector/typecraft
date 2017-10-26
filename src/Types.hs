@@ -1,11 +1,12 @@
-{-# LANGUAGE DeriveDataTypeable   #-}
-{-# LANGUAGE DeriveFunctor        #-}
-{-# LANGUAGE NoImplicitPrelude    #-}
-{-# LANGUAGE RecordWildCards      #-}
-{-# LANGUAGE StandaloneDeriving   #-}
-{-# LANGUAGE StrictData           #-}
-{-# LANGUAGE TemplateHaskell      #-}
-{-# OPTIONS_GHC -fno-warn-orphans #-}
+{-# LANGUAGE DeriveDataTypeable           #-}
+{-# LANGUAGE DeriveFunctor                #-}
+{-# LANGUAGE NoImplicitPrelude            #-}
+{-# LANGUAGE RecordWildCards              #-}
+{-# LANGUAGE StandaloneDeriving           #-}
+{-# LANGUAGE StrictData                   #-}
+{-# LANGUAGE TemplateHaskell              #-}
+{-# OPTIONS_GHC -fno-warn-missing-methods #-}
+{-# OPTIONS_GHC -fno-warn-orphans         #-}
 
 module Types
   ( module Types
@@ -21,6 +22,7 @@ import Linear.Vector hiding (E (..))
 import Game.Sequoia
 import Game.Sequoia.Color (Color (..), red)
 import Game.Sequoia.Keyboard (Key)
+
 
 fi :: (Num b, Integral a) => a -> b
 fi = fromIntegral

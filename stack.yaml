@@ -11,8 +11,15 @@ packages:
     location:
       git: https://github.com/isovector/htiled.git
       commit: bb18e7dd85b3f1fe8f9e339f8e6b8ea942bbe361
+  - extra-dep: true
+    location:
+      git: https://github.com/isovector/QuadTree.git
+      commit: 4f2993f3ae31d45216b06c6cbc9ea8da3f8bcf09
 
 extra-deps:
   - sdl2-2.1.3
   - frpnow-0.18
+  - recursion-schemes-5.0.2
+
+
 resolver: lts-7.1
