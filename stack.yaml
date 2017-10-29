@@ -1,8 +1,6 @@
 flags: {}
 packages:
   - '.'
-  - '../sequoia'
-  - '../bones'
   - extra-dep: true
     location:
       git: https://github.com/isovector/th-dict-discovery.git
@@ -15,6 +13,14 @@ packages:
     location:
       git: https://github.com/isovector/QuadTree.git
       commit: 4f2993f3ae31d45216b06c6cbc9ea8da3f8bcf09
+  - extra-dep: true
+    location:
+      git: https://github.com/isovector/sequoia.git
+      commit: 4f4dd05fbbc311c1a8a2691cda4ee45a9086dbe1
+  - extra-dep: true
+    location:
+      git: https://github.com/isovector/bones.git
+      commit: f436c93a56c7b7959f413f1998a4668241371b9a
 
 extra-deps:
   - sdl2-2.1.3
