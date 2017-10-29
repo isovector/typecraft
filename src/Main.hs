@@ -10,9 +10,10 @@ import Control.Monad.Writer
 import Constants
 import Control.FRPNow.Time (delayTime)
 import Game.Sequoia
-import Game.Sequoia.Color (black)
+import Game.Sequoia.Utils (showTrace)
+import Game.Sequoia.Color (black, red)
 import Game.Sequoia.Keyboard
-import Game.Sequoia.Window (mousePos, mouseButtons, MouseButton (ButtonLeft))
+import Game.Sequoia.Window (mousePos, mouseButtons, MouseButton (..))
 import Map (maps)
 import Types hiding (left, left')
 import Utils (alignToGrid)
@@ -80,7 +81,8 @@ draw mpos state = group $
          : drawInputState mpos (state ^. sLocalState . lsInputState)
          : (drawPanel <$> panels))
          ++ debugDrawQuad tree
-         ++ debugDrawConnectivity tree
+         -- ++ debugDrawConnectivity tree
+         ++ [state ^. sLocalState . lsDebugVis]
   where
     tree = buildQuadTree (100, 100) $ getBuildings state
     cam = state ^. sLocalState . lsCamera
@@ -92,6 +94,7 @@ draw mpos state = group $
 
 drawInputState :: V2 -> InputState -> Form
 drawInputState _    NormalState = group []
+drawInputState _    (DebugVisPathingState _) = group []
 drawInputState mpos (PlaceBuildingState up)
   = move (alignToGrid mpos)
   . group $
@@ -151,6 +154,10 @@ updateGame mpos press _ = do
           . tell
           . maybeToList
           $ getPanelAction panels mpos
+      when (press ButtonRight)
+          . tell
+          . pure
+          $ DebugVisStartPathing mpos
 
     PlaceBuildingState pt -> do
       when (press ButtonLeft)
@@ -158,6 +165,12 @@ updateGame mpos press _ = do
           . pure
           . ConfirmBuilding pt
           $ alignToGrid mpos
+
+    DebugVisPathingState src -> do
+      when (press ButtonRight)
+          . tell
+          . pure
+          $ DebugVisPathing src mpos
 
 
 
@@ -174,11 +187,14 @@ runUpdateGame s w
 runCommand :: Command -> State -> State
 runCommand DoNothing           = id
 runCommand (PlaceBuilding pt)  = sLocalState . lsInputState .~ PlaceBuildingState pt
+runCommand (DebugVisStartPathing src)  = sLocalState . lsInputState .~ DebugVisPathingState src
 runCommand (ConfirmBuilding pt pos) = \s ->
   s & sLocalState . lsInputState .~ NormalState
     & sGameState . gsPlayers . ix (s ^. sLocalState . lsPlayer) . pOwned . poBuildings %~
       \bs -> (Building { _bPrototype = pt, _bStats = prototypeToStats pos pt} ) : bs
-
+runCommand (DebugVisPathing src dst) = \s ->
+  s & sLocalState . lsInputState .~ NormalState
+    & sLocalState . lsDebugVis .~ debugDrawLines red (join (maybeToList $ pathfind (buildQuadTree (100, 100) $ getBuildings s) src dst))
 
 
 main :: IO ()

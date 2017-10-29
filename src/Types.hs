@@ -28,6 +28,7 @@ fi :: (Num b, Integral a) => a -> b
 fi = fromIntegral
 
 instance Data Element
+instance Data Form
 deriving instance Data Color
 
 data AABB = AABB
@@ -59,6 +60,7 @@ getPanelAction ps pos = fmap _panelAction
 data InputState
   = NormalState
   | PlaceBuildingState UnitPrototype
+  | DebugVisPathingState V2
   deriving (Eq, Show, Data)
 
 
@@ -77,6 +79,7 @@ data LocalState = LocalState
   { _lsInputState :: InputState
   , _lsCamera     :: V2
   , _lsPlayer     :: Int
+  , _lsDebugVis   :: Form
   } deriving (Eq, Show, Data)
 
 defLocalState :: LocalState
@@ -84,6 +87,7 @@ defLocalState = LocalState
   { _lsInputState = NormalState
   , _lsCamera = V2 0 0
   , _lsPlayer = 0
+  , _lsDebugVis = group []
   }
 
 data GameState = GameState
@@ -143,6 +147,8 @@ data Command
   = DoNothing
   | PlaceBuilding UnitPrototype
   | ConfirmBuilding UnitPrototype V2
+  | DebugVisStartPathing V2
+  | DebugVisPathing V2 V2
   deriving (Eq, Show)
 
 

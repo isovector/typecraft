@@ -55,23 +55,31 @@ centerOf (x, y, x', y') =
   V2 ((fi (x' - x + 1) / 2 + fi x) * fi tileWidth) ((fi (y' - y + 1) / 2 + fi y) * fi tileHeight)
 
 debugDrawConnectivity :: QuadTree Bool -> [Form]
-debugDrawConnectivity = fmap (uncurry debugDraw)
+debugDrawConnectivity = fmap (uncurry $ debugDrawLine red)
                       . concatMap sequenceA
                       . M.toList
                       . adjacentTiles
                       . getCollisionGraph
-  where
-    debugDraw (_, r1) (_, r2)
-      = traced (defaultLine { lineColor = red, lineWidth = 2 })
-      $ path [centerOf r1, centerOf r2]
 
-adjacentTiles :: Ord a => [Tile a] -> M.Map (Tile a) [Tile a]
+
+debugDrawLine :: Color -> Tile a -> Tile a -> Form
+debugDrawLine c t1 t2 = debugDrawLines c [t1, t2]
+
+debugDrawLines :: Color -> [Tile a] -> Form
+debugDrawLines c
+  = traced (defaultLine { lineColor = c, lineWidth = 2 })
+  . path
+  . fmap (centerOf . snd)
+
+adjacentTiles :: [Tile Bool] -> M.Map (Tile Bool) [Tile Bool]
 adjacentTiles ts
   = M.fromListWith (++)
   $ do
     a <- ts
     b <- ts
+    guard . not $ fst a || fst b
     guard $ snd a `adjacent` snd b
+    guard $ snd a /= snd b
     pure (a, [b])
 
 adjacent :: (Int, Int, Int, Int) -> (Int, Int, Int, Int) -> Bool
@@ -94,11 +102,12 @@ pathfind qt srcv2 dstv2 = do
   src <- getTile qt srcv2
   dst <- getTile qt dstv2
   let dist = ((quadrance .) . on (-) (centerOf . snd))
-  aStar (HS.fromList . (M.!) at)
-        dist
-        (dist dst)
-        (== dst)
-        src
+  (src : ) <$>
+    aStar (HS.fromList . (M.!) at)
+          dist
+          (dist dst)
+          (== dst)
+          src
 
 
 -- :: (Hashable a, Ord a, Ord c, Num c)
