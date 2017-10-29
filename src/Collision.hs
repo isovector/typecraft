@@ -109,12 +109,3 @@ pathfind qt srcv2 dstv2 = do
           (== dst)
           src
 
-
--- :: (Hashable a, Ord a, Ord c, Num c)
--- => (a -> HashSet a)
--- -> (a -> a -> c)
--- -> (a -> c)
--- -> (a -> Bool)
--- -> a
--- -> Maybe [a]
-
