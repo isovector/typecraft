@@ -35,6 +35,7 @@ executable typecraft
                , data-default
                , frpnow
                , htiled
+               , aeson-tiled
                , lens
                , linear
                , mtl
