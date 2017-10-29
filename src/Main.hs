@@ -79,7 +79,7 @@ draw mpos state = group $
          ( onmap
          : drawInputState mpos (state ^. sLocalState . lsInputState)
          : (drawPanel <$> panels))
-         -- ++ debugDrawQuad tree
+         ++ debugDrawQuad tree
          ++ debugDrawConnectivity tree
   where
     tree = buildQuadTree (100, 100) $ getBuildings state
@@ -120,8 +120,7 @@ runGame = do
     arrs  <- sample $ arrows keyboard
     dt    <- sample clock
     mpos  <- toV2 <$> sample mouse
-    left' <- ($ ButtonLeft) <$> sample buttons
-    left  <- ($ ButtonLeft) <$> sample oldButtons
+    press <- sample $ (\b' b z -> b' z && not (b z)) <$> buttons <*> oldButtons
 
     hks <- fmap (mapMaybe id) . for panels $ \p ->
       fmap join . for (_panelHotKey p) $ \hk -> do
@@ -131,7 +130,7 @@ runGame = do
            else pure Nothing
 
     pure $
-      (runUpdateGame state $ updateGame mpos left' left dt >> tell hks)
+      (runUpdateGame state $ updateGame mpos press dt >> tell hks)
       & sLocalState . lsCamera %~ (+ arrs ^* (10 * 16 * dt))
 
   pure $ do
@@ -142,19 +141,19 @@ runGame = do
          $ draw mpos state
 
 
-updateGame :: V2 -> Bool -> Bool -> Time -> Game ()
-updateGame mpos left' left _ = do
+updateGame :: V2 -> (MouseButton -> Bool) -> Time -> Game ()
+updateGame mpos press _ = do
   s <- ask
 
   case s ^. sLocalState . lsInputState of
     NormalState -> do
-      when (left' && not left)
+      when (press ButtonLeft)
           . tell
           . maybeToList
           $ getPanelAction panels mpos
 
     PlaceBuildingState pt -> do
-      when (left' && not left)
+      when (press ButtonLeft)
           . tell
           . pure
           . ConfirmBuilding pt

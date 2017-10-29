@@ -27,9 +27,11 @@ executable typecraft
                     , ViewPatterns
 
   build-depends: base
+               , astar
                , base-prelude
                , constraints
                , containers
+               , unordered-containers
                , data-default
                , frpnow
                , htiled

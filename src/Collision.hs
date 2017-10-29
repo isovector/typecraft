@@ -2,13 +2,17 @@
 
 module Collision where
 
-import Constants
-import Data.QuadTree
-import Control.Lens
-import Types
-import Data.Functor.Foldable
-import Utils
-import Game.Sequoia.Color (black, red)
+import Data.Graph.AStar
+import           Constants
+import           Control.Lens
+import           Data.Functor.Foldable
+import qualified Data.Map as M
+import qualified Data.HashSet as HS
+import           Data.QuadTree
+import           Game.Sequoia.Color (black, red)
+import           Types
+import           Utils
+import Linear.Metric (quadrance)
 
 
 buildQuadTree :: (Int, Int) -> [Building] -> QuadTree Bool
@@ -52,6 +56,8 @@ centerOf (x, y, x', y') =
 
 debugDrawConnectivity :: QuadTree Bool -> [Form]
 debugDrawConnectivity = fmap (uncurry debugDraw)
+                      . concatMap sequenceA
+                      . M.toList
                       . adjacentTiles
                       . getCollisionGraph
   where
@@ -59,13 +65,14 @@ debugDrawConnectivity = fmap (uncurry debugDraw)
       = traced (defaultLine { lineColor = red, lineWidth = 2 })
       $ path [centerOf r1, centerOf r2]
 
-adjacentTiles :: [Tile a] -> [(Tile a, Tile a)]
-adjacentTiles ts = do
-  a <- ts
-  b <- ts
-  guard $ snd a `adjacent` snd b
-  pure (a, b)
-
+adjacentTiles :: Ord a => [Tile a] -> M.Map (Tile a) [Tile a]
+adjacentTiles ts
+  = M.fromListWith (++)
+  $ do
+    a <- ts
+    b <- ts
+    guard $ snd a `adjacent` snd b
+    pure (a, [b])
 
 adjacent :: (Int, Int, Int, Int) -> (Int, Int, Int, Int) -> Bool
 adjacent (x1, y1, x1', y1') (x2, y2, x2', y2') =
@@ -75,4 +82,30 @@ adjacent (x1, y1, x1', y1') (x2, y2, x2', y2') =
     colAdjacent = x1 == x2' + 1 || x2 == x1' + 1
     rowContained = (y1 >= y2 && y1' <= y2') || (y2 >= y1 && y2' <= y1')
     colContained = (x1 >= x2 && x1' <= x2') || (x2 >= x1 && x2' <= x1')
+
+getTile :: QuadTree a -> V2 -> Maybe (Tile a)
+getTile qt v2 = listToMaybe . filter (inRegion loc . snd) $ tile qt
+  where
+    loc = (view _x &&& view _y) $ gridPos v2
+
+pathfind :: QuadTree Bool -> V2 -> V2 -> Maybe [Tile Bool]
+pathfind qt srcv2 dstv2 = do
+  let at = adjacentTiles $ tile qt
+  src <- getTile qt srcv2
+  dst <- getTile qt dstv2
+  let dist = ((quadrance .) . on (-) (centerOf . snd))
+  aStar (HS.fromList . (M.!) at)
+        dist
+        (dist dst)
+        (== dst)
+        src
+
+
+-- :: (Hashable a, Ord a, Ord c, Num c)
+-- => (a -> HashSet a)
+-- -> (a -> a -> c)
+-- -> (a -> c)
+-- -> (a -> Bool)
+-- -> a
+-- -> Maybe [a]
 

@@ -26,6 +26,7 @@ extra-deps:
   - sdl2-2.1.3
   - frpnow-0.18
   - recursion-schemes-5.0.2
+  - astar-0.3.0.0
 
 
 resolver: lts-7.1
