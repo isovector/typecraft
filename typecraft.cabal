@@ -41,7 +41,6 @@ executable typecraft
                , mtl
                , recursion-schemes
                , sequoia
-               , th-dict-discovery
                , transformers
                , QuadTree
   hs-source-dirs:      src

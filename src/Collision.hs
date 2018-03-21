@@ -84,7 +84,9 @@ adjacentTiles ts
 
 adjacent :: (Int, Int, Int, Int) -> (Int, Int, Int, Int) -> Bool
 adjacent (x1, y1, x1', y1') (x2, y2, x2', y2') =
-    (rowAdjacent || rowContained) && (colAdjacent || colContained)
+       (rowAdjacent || rowContained)
+    && (colAdjacent || colContained)
+    && not (rowAdjacent && colAdjacent)
   where
     rowAdjacent = y1 == y2' + 1 || y2 == y1' + 1
     colAdjacent = x1 == x2' + 1 || x2 == x1' + 1

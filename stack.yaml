@@ -3,10 +3,6 @@ packages:
   - '.'
   - extra-dep: true
     location:
-      git: https://github.com/isovector/th-dict-discovery.git
-      commit: d6c8c77abc87b364b0ac6568d6aec6798a635340
-  - extra-dep: true
-    location:
       git: https://github.com/isovector/htiled.git
       commit: bb18e7dd85b3f1fe8f9e339f8e6b8ea942bbe361
   - extra-dep: true
@@ -23,7 +19,7 @@ packages:
       commit: 759847ab18ff0696bc6003cd5852ca76f20486b8
 
 extra-deps:
-  - sdl2-2.1.3
+  - sdl2-2.3.0
   - frpnow-0.18
   - recursion-schemes-5.0.2
   - astar-0.3.0.0
@@ -31,4 +27,4 @@ extra-deps:
   - th-abstraction-0.2.6.0
 
 
-resolver: lts-7.1
+resolver: lts-9.0

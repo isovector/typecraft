@@ -19,6 +19,12 @@ import Types hiding (left, left')
 import Utils (alignToGrid)
 
 
+buttonLeft :: MouseButton
+buttonLeft = ButtonExtra 0
+
+buttonRight :: MouseButton
+buttonRight = ButtonExtra 2
+
 type Game = WriterT [Command] ((->) State)
 
 myCC :: Building
@@ -79,10 +85,13 @@ draw :: V2 -> State -> Form
 draw mpos state = group $
          ( onmap
          : drawInputState mpos (state ^. sLocalState . lsInputState)
-         : (drawPanel <$> panels))
-         ++ debugDrawQuad tree
+         : (drawPanel <$> panels)
+         ) ++
+         ( fmap (move (-cam)) $
+           (state ^. sLocalState . lsDebugVis)
+           : debugDrawQuad tree
          -- ++ debugDrawConnectivity tree
-         ++ [state ^. sLocalState . lsDebugVis]
+         )
   where
     tree = buildQuadTree (100, 100) $ getBuildings state
     cam = state ^. sLocalState . lsCamera
@@ -145,29 +154,31 @@ runGame = do
 
 
 updateGame :: V2 -> (MouseButton -> Bool) -> Time -> Game ()
-updateGame mpos press _ = do
+updateGame mpos' press _ = do
   s <- ask
+  let cam = s ^. sLocalState . lsCamera
+      mpos = mpos' + cam
 
   case s ^. sLocalState . lsInputState of
     NormalState -> do
-      when (press ButtonLeft)
+      when (press buttonLeft)
           . tell
           . maybeToList
           $ getPanelAction panels mpos
-      when (press ButtonRight)
+      when (press buttonRight)
           . tell
           . pure
           $ DebugVisStartPathing mpos
 
     PlaceBuildingState pt -> do
-      when (press ButtonLeft)
+      when (press buttonLeft)
           . tell
           . pure
           . ConfirmBuilding pt
           $ alignToGrid mpos
 
     DebugVisPathingState src -> do
-      when (press ButtonRight)
+      when (press buttonRight)
           . tell
           . pure
           $ DebugVisPathing src mpos
