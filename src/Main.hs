@@ -25,21 +25,21 @@ buttonLeft = ButtonExtra 0
 buttonRight :: MouseButton
 buttonRight = ButtonExtra 2
 
-type Game = WriterT [Command] ((->) State)
+type Game = WriterT [Command] ((->) LocalState)
 
-myCC :: Building
-myCC = Building
-  { _bPrototype = commandCenter
-  , _bStats = UnitStats 1500
-            $ V2 (10 * fi tileWidth)
-                 (10 * fi tileHeight)
-  }
+-- myCC :: Building
+-- myCC = Building
+--   { _bPrototype = commandCenter
+--   , _bStats = UnitStats 1500
+--             $ V2 (10 * fi tileWidth)
+--                  (10 * fi tileHeight)
+--   }
 
 
-drawBuilding :: Building -> Form
-drawBuilding b = move (b ^. bStats . usPos)
-               . toForm
-               $ b ^. bPrototype . upGfx
+-- drawBuilding :: Building -> Form
+-- drawBuilding b = move (b ^. bStats . usPos)
+--                . toForm
+--                $ b ^. bPrototype . upGfx
 
 
 drawPanel :: Panel a -> Form
@@ -78,27 +78,27 @@ drawMap m cam = group
                            (1 / fi tileHeight)
 
 
-getBuildings :: State -> [Building]
+getBuildings :: LocalState -> [Building]
 getBuildings s = s ^.. biplate
 
-draw :: V2 -> State -> Form
-draw mpos state = group $
+draw :: V2 -> LocalState -> Form
+draw mpos LocalState = group $
          ( onmap
-         : drawInputState mpos (state ^. sLocalState . lsInputState)
+         : drawInputState mpos (LocalState ^. sLocalState . lsInputState)
          : (drawPanel <$> panels)
          ) ++
          ( fmap (move (-cam)) $
-           (state ^. sLocalState . lsDebugVis)
+           (LocalState ^. sLocalState . lsDebugVis)
            : debugDrawQuad tree
          -- ++ debugDrawConnectivity tree
          )
   where
-    tree = buildQuadTree (100, 100) $ getBuildings state
-    cam = state ^. sLocalState . lsCamera
+    tree = buildQuadTree (100, 100) $ getBuildings LocalState
+    cam = LocalState ^. sLocalState . lsCamera
     onmap = move (-cam)
           . group
           $ drawMap (fromJust (lookup "mindfuck" maps)) cam
-          : (drawBuilding <$> getBuildings state)
+          : (drawBuilding <$> getBuildings LocalState)
 
 
 drawInputState :: V2 -> InputState -> Form
@@ -128,7 +128,7 @@ runGame = do
   buttons    <- mouseButtons
   oldButtons <- sample $ delayTime clock (const False) buttons
 
-  (game, _) <- foldmp defState $ \state -> do
+  (game, _) <- foldmp defState $ \LocalState -> do
     arrs  <- sample $ arrows keyboard
     dt    <- sample clock
     mpos  <- toV2 <$> sample mouse
@@ -142,15 +142,15 @@ runGame = do
            else pure Nothing
 
     pure $
-      (runUpdateGame state $ updateGame mpos press dt >> tell hks)
+      (runUpdateGame LocalState $ updateGame mpos press dt >> tell hks)
       & sLocalState . lsCamera %~ (+ arrs ^* (10 * 16 * dt))
 
   pure $ do
-    state <- sample game
+    LocalState <- sample game
     mpos  <- toV2 <$> sample mouse
     pure . collage gameWidth gameHeight
          . pure
-         $ draw mpos state
+         $ draw mpos LocalState
 
 
 updateGame :: V2 -> (MouseButton -> Bool) -> Time -> Game ()
@@ -185,7 +185,7 @@ updateGame mpos' press _ = do
 
 
 
-runUpdateGame :: State -> Game () -> State
+runUpdateGame :: LocalState -> Game () -> LocalState
 runUpdateGame s w
   = ($ s)
   . appEndo
@@ -195,17 +195,17 @@ runUpdateGame s w
 
 
 
-runCommand :: Command -> State -> State
-runCommand DoNothing           = id
-runCommand (PlaceBuilding pt)  = sLocalState . lsInputState .~ PlaceBuildingState pt
-runCommand (DebugVisStartPathing src)  = sLocalState . lsInputState .~ DebugVisPathingState src
-runCommand (ConfirmBuilding pt pos) = \s ->
-  s & sLocalState . lsInputState .~ NormalState
-    & sGameState . gsPlayers . ix (s ^. sLocalState . lsPlayer) . pOwned . poBuildings %~
-      \bs -> (Building { _bPrototype = pt, _bStats = prototypeToStats pos pt} ) : bs
-runCommand (DebugVisPathing src dst) = \s ->
-  s & sLocalState . lsInputState .~ NormalState
-    & sLocalState . lsDebugVis .~ debugDrawLines red (join (maybeToList $ pathfind (buildQuadTree (100, 100) $ getBuildings s) src dst))
+-- runCommand :: Command -> LocalState -> LocalState
+-- runCommand DoNothing           = id
+-- runCommand (PlaceBuilding pt)  = sLocalState . lsInputState .~ PlaceBuildingState pt
+-- runCommand (DebugVisStartPathing src)  = sLocalState . lsInputState .~ DebugVisPathingState src
+-- runCommand (ConfirmBuilding pt pos) = \s ->
+--   s & sLocalState . lsInputState .~ NormalState
+--     & sGameState . gsPlayers . ix (s ^. sLocalState . lsPlayer) . pOwned . poBuildings %~
+--       \bs -> (Building { _bPrototype = pt, _bStats = prototypeToStats pos pt} ) : bs
+-- runCommand (DebugVisPathing src dst) = \s ->
+--   s & sLocalState . lsInputState .~ NormalState
+--     & sLocalState . lsDebugVis .~ debugDrawLines red (join (maybeToList $ pathfind (buildQuadTree (100, 100) $ getBuildings s) src dst))
 
 
 main :: IO ()

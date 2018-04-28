@@ -17,9 +17,10 @@ parseLayers tileset ls = tiledata
 
 
 parseTileset :: Maybe (Tileset, FilePath) -> Maybe Layer -> Int -> Int -> [Form]
-parseTileset (Just (ts, fp)) (Just Layer {layerData}) x y = fmap toTile
-                                                          . maybeToList
-                                                          $ M.lookup (x, y) layerData
+parseTileset (Just (ts, fp)) (Just Layer {layerData}) x y
+    = fmap toTile
+    . maybeToList
+    $ M.lookup (x, y) layerData
   where
     toTile :: Tile -> Form
     toTile (tileGid -> t)

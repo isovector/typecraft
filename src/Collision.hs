@@ -15,20 +15,19 @@ import           Utils
 import Linear.Metric (quadrance)
 
 
-buildQuadTree :: (Int, Int) -> [Building] -> QuadTree Bool
+buildQuadTree :: (Int, Int) -> [((Int, Int), V2)] -> QuadTree Bool
 buildQuadTree size = cata alg
   where
     alg Nil = makeTree size False
-    alg (Cons b t)
+    alg (Cons ((tw, th), xy) t)
       = ($ t)
       . appEndo
       . foldMap (Endo . (.~ True) . atLocation)
       $ [ (x + dx, y + dy)
-        | dx <- [0 .. (b ^. bPrototype . upWidth  `div` tileWidth ) - 1]
-        , dy <- [0 .. (b ^. bPrototype . upHeight `div` tileHeight) - 1]
+        | dx <- [0 .. (tw `div` tileWidth ) - 1]
+        , dy <- [0 .. (th `div` tileHeight) - 1]
         , let (x, y) = (view _x &&& view _y)
-                     . gridPos
-                     $ b ^. bStats . usPos
+                     $ gridPos xy
         ]
 
 isLegit :: (Int, Int, Int, Int) -> Bool
