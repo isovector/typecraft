@@ -39,7 +39,7 @@ liftV2 :: (Double -> Double -> Bool) -> V2 -> V2 -> Bool
 liftV2 f (V2 x y) (V2 x' y') = f x x' && f y y'
 
 
-recv :: (EntWorld 'FieldOf -> Maybe a) -> QueryT EntWorld Underlying a
+recv :: (EntWorld 'FieldOf -> Maybe a) -> Query a
 recv = E.get
 
 
@@ -49,14 +49,14 @@ boolMonoid = flip (bool mempty)
 
 recvFlag
     :: (EntWorld 'FieldOf -> Maybe ())
-    -> QueryT EntWorld Underlying Bool
+    -> Query Bool
 recvFlag = fmap (maybe False (const True)) . getMaybe
 
 
 recvDef
     :: z
     -> (EntWorld 'FieldOf -> Maybe z)
-    -> QueryT EntWorld Underlying z
+    -> Query z
 recvDef z = fmap (maybe z id) . getMaybe
 
 

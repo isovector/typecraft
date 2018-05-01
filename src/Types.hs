@@ -27,6 +27,7 @@ data LocalState = LocalState
   }
 
 type Underlying = State LocalState
+type Query = QueryT EntWorld Underlying
 
 
 type Game = SystemT EntWorld Underlying
@@ -34,8 +35,13 @@ type Game = SystemT EntWorld Underlying
 data Nav
   = Goal V2
 
+data Target
+  = TargetGround V2
+  | TargetUnit Ent
+
 data UnitType
   = Unit
+  | Missile Target
 
 data Player = Player
   { pColor :: Color

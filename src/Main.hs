@@ -26,6 +26,20 @@ neutralPlayer = Player $ rgb 0.25 0.55 0.95
 
 initialize :: Game ()
 initialize = do
+  void $ newEntity defEntity
+    { pos = Just $ V2 100 500
+    , unitType = Just $ Missile $ TargetGround $ V2 600 100
+    , speed = Just 300
+    , owner = Just neutralPlayer
+    }
+
+  void $ newEntity defEntity
+    { pos = Just $ V2 100 400
+    , unitType = Just $ Missile $ TargetUnit $ Ent 8
+    , speed = Just 50
+    , owner = Just neutralPlayer
+    }
+
   for_ [0 .. 10] $ \i -> do
     newEntity defEntity
       { pos      = Just $ V2 (i * 50) (i * 50)
@@ -36,26 +50,69 @@ initialize = do
       }
 
 
+moveTowards :: Time -> V2 -> Query (Bool, V2)
+moveTowards dt g = do
+  p <- recv pos
+  s <- recv speed
+
+  let dir = g - p
+      dist = norm dir
+      dx = s * dt
+
+  pure (dx < dist, p + dx *^ normalize dir)
+
+
 update :: Time -> Game ()
 update dt = do
+  missileGround <- efor $ \ent -> do
+    Missile (TargetGround g) <- recv unitType
+    pure (ent, g)
+
+  missileTarget <- efor $ \ent -> do
+    Missile (TargetUnit e) <- recv unitType
+    pure (ent, e)
+
+  missileTargeted <- for missileTarget $ \(ent, e) -> do
+    p <- runQueryT e $ recv pos
+    pure (ent, p)
+
+  for_ (missileGround ++ mapMaybe sequence missileTargeted) $ \(ent, p) -> do
+    s <- runQueryT ent $ do
+      (notThereYet, p') <- moveTowards dt p
+
+      pure $ case notThereYet of
+        False -> delEntity
+        True  -> defEntity'
+          { pos = Set p'
+          }
+    for_ s $ setEntity ent
+
+
+
+  -- do ground missiles
+  emap $ do
+    Missile (TargetGround g) <- recv unitType
+    (notThereYet, p) <- moveTowards dt g
+
+    pure $ case notThereYet of
+      False -> delEntity
+      True  -> defEntity'
+        { pos     = Set p
+        }
+
   -- do walking
   emap $ do
     Unit   <- recv unitType
-    p      <- recv pos
-    s      <- recv speed
     Goal g <- recv pathing
+    (notThereYet, p) <- moveTowards dt g
 
-    let dir = g - p
-        dist = norm dir
-        dx = s * dt
-
-        shouldStop =
-          case dx < dist of
+    let shouldStop =
+          case notThereYet of
             True  -> Keep
             False -> Unset
 
     pure defEntity'
-      { pos     = Set $ p + dx *^ normalize dir
+      { pos     = Set p
       , pathing = shouldStop
       }
 
