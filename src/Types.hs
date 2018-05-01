@@ -23,6 +23,7 @@ data Mouse = Mouse
 
 data LocalState = LocalState
   { _lsSelBox :: Maybe V2
+  , _lsPlayer :: Player
   }
 
 type Underlying = State LocalState

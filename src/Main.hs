@@ -16,8 +16,12 @@ gameHeight :: Num t => t
 gameHeight = 600
 
 
+mePlayer :: Player
+mePlayer = Player $ rgb 1 0 0
+
+
 neutralPlayer :: Player
-neutralPlayer = Player $ rgb 1 0 1
+neutralPlayer = Player $ rgb 0.25 0.55 0.95
 
 
 initialize :: Game ()
@@ -27,7 +31,7 @@ initialize = do
       { pos      = Just $ V2 (i * 50) (i * 50)
       , speed    = Just 50
       , selected = bool Nothing (Just ()) $ mod (round i) 2 == (0 :: Int)
-      , owner    = Just neutralPlayer
+      , owner    = Just $ bool neutralPlayer mePlayer $ mod (round i) 2 == (0 :: Int)
       , unitType = Just Unit
       }
 
@@ -64,6 +68,8 @@ player mouse = do
   when (mUnpress mouse buttonLeft) $ do
     -- TODO(sandy): finicky
     Just p1 <- lift $ gets _lsSelBox
+    lPlayer <- lift $ gets _lsPlayer
+
     lift $ modify $ lsSelBox .~ Nothing
     let p2 = mPos mouse
         (tl, br) = canonicalizeV2 p1 p2
@@ -71,7 +77,7 @@ player mouse = do
     emap $ do
       p <- recv pos
       o <- recv owner
-      guard $ o == neutralPlayer
+      guard $ o == lPlayer
       pure defEntity'
         { selected =
             case liftV2 (<=) tl p && liftV2 (<) p br of
@@ -143,6 +149,7 @@ run = do
 
   let realState = LocalState
         { _lsSelBox = Nothing
+        , _lsPlayer = mePlayer
         }
 
   let init = fst $ runGame (realState, (0, defWorld)) initialize
@@ -169,4 +176,4 @@ main :: IO ()
 main = play config (const run) pure
   where
     config = EngineConfig (gameWidth, gameHeight) "Typecraft"
-           $ rgb 0.25 0.55 0.95
+           $ rgb 0 0 0
