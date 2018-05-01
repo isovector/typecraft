@@ -6,6 +6,7 @@
 {-# LANGUAGE StandaloneDeriving           #-}
 {-# LANGUAGE StrictData                   #-}
 {-# LANGUAGE TemplateHaskell              #-}
+{-# LANGUAGE TypeOperators                #-}
 {-# OPTIONS_GHC -fno-warn-missing-methods #-}
 {-# OPTIONS_GHC -fno-warn-orphans         #-}
 
@@ -15,15 +16,27 @@ module Types
   , module BasePrelude
   , module Game.Sequoia
   , module Control.Lens
+  , module Data.Ecstasy
   ) where
 
 import Data.Ecstasy
-import Control.Lens
+import Control.Lens hiding (without)
 import BasePrelude hiding (rotate, group, (&), uncons, index, lazy, throw, Handler, runHandlers)
 import Linear.Vector hiding (E (..))
 import Game.Sequoia
 import Game.Sequoia.Color (Color (..), red)
 import Game.Sequoia.Keyboard (Key)
+import Control.Monad.Trans.State
+import Control.Monad.Trans.Writer
+
+
+infixr 0 :$
+type a :$ b = a b
+
+type Game = SystemT EntWorld
+         :$ StateT LocalState
+         :$ WriterT [Command]
+         :$ IO
 
 
 fi :: (Num b, Integral a) => a -> b
@@ -100,6 +113,21 @@ data LocalState = LocalState
   , _lsDebugVis   :: Form
   } deriving (Eq, Show)
 
+
+data Command
+  = DoNothing
+  | PlaceBuilding Prototype
+  | ConfirmBuilding Prototype V2
+  | DebugVisStartPathing V2
+  | DebugVisPathing V2 V2
+  deriving (Eq, Show)
+
+makeLenses ''AABB
+makeLenses ''Hotkey
+makeLenses ''LocalState
+makeLenses ''Player
+makeLenses ''Prototype
+makePrisms ''InputState
 makePrisms ''Space
 
 pos :: EntWorld 'FieldOf -> Maybe V2
@@ -132,14 +160,6 @@ inAABB AABB {..} pos =
 --                       $ filter (flip inAABB pos . _panelAABB) ps
 
 
-
--- data Command
---   = DoNothing
---   | PlaceBuilding UnitPrototype
---   | ConfirmBuilding UnitPrototype V2
---   | DebugVisStartPathing V2
---   | DebugVisPathing V2 V2
---   deriving (Eq, Show)
 
 
 -- commandCenter :: UnitPrototype
