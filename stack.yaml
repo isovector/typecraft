@@ -16,7 +16,7 @@ packages:
   - extra-dep: true
     location:
       git: https://github.com/isovector/sequoia.git
-      commit: 759847ab18ff0696bc6003cd5852ca76f20486b8
+      commit: 605f5124cc31e31a6f7a6ef68f4636d10d267b10
 
 extra-deps:
   - sdl2-2.3.0

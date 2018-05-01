@@ -23,10 +23,21 @@ import Data.Ecstasy
 import Data.Functor.Identity (Identity (..))
 
 
+boolMonoid :: Monoid m => Bool -> m -> m
+boolMonoid = flip (bool mempty)
+
+
 getFlag
     :: (EntWorld 'FieldOf -> Maybe ())
     -> QueryT EntWorld Identity Bool
 getFlag = fmap (maybe False (const True)) . getMaybe
+
+
+getDef
+    :: z
+    -> (EntWorld 'FieldOf -> Maybe z)
+    -> QueryT EntWorld Identity z
+getDef z = fmap (maybe z id) . getMaybe
 
 
 runGame

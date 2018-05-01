@@ -12,13 +12,24 @@ type Game = SystemT EntWorld Identity
 data Nav
   = Goal V2
 
+data UnitType
+  = Unit
+
+data Player = Player
+  { pColor :: Color
+  }
+
+
 type Flag f = Component f 'Field ()
+type Field f a = Component f 'Field a
 
 data EntWorld f = World
-  { pos      :: Component f 'Field V2
-  , pathing  :: Component f 'Field Nav
-  , speed    :: Component f 'Field Double
+  { pos      :: Field f V2
+  , pathing  :: Field f Nav
+  , speed    :: Field f Double
   , selected :: Flag f
+  , unitType :: Field f UnitType
+  , owner    :: Field f Player
   }
   deriving (Generic)
 

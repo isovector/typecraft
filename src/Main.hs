@@ -16,9 +16,27 @@ gameHeight :: Num t => t
 gameHeight = 600
 
 
+neutralPlayer :: Player
+neutralPlayer = Player $ rgb 1 0 1
+
+
+initialize :: Game ()
+initialize = do
+  for_ [0 .. 10] $ \i -> do
+    newEntity defEntity
+      { pos      = Just $ V2 (i * 50) (i * 50)
+      , speed    = Just 50
+      , selected = bool Nothing (Just ()) $ mod (round i) 2 == (0 :: Int)
+      , owner    = Just neutralPlayer
+      , unitType = Just Unit
+      }
+
+
 update :: Time -> Game ()
 update dt = do
+  -- do walking
   emap $ do
+    Unit   <- get unitType
     p      <- get pos
     s      <- get speed
     Goal g <- get pathing
@@ -52,23 +70,17 @@ player mpos onDown = do
 
 draw :: V2 -> Game Form
 draw _ = do
-  es <- efor $ const $ (,)
+  es <- efor $ const $ (,,)
                    <$> get pos
                    <*> getFlag selected
-  pure $ group $ es <&> \(p, z) ->
-    move p $ filled (let c = bool 0 1 z in rgb c c c) $ rect 5 5
+                   <*> getDef neutralPlayer owner
+  pure $ group $ es <&> \(p, z, o) ->
+    move p $ group
+      [ boolMonoid z $ traced' (rgb 0 1 0) $ circle 10
+      , filled (pColor o) $ rect 5 5
+      ]
 
 
-
-initialize :: Game ()
-initialize = do
-  for_ [0 .. 10] $ \i -> do
-    newEntity defEntity
-      { pos     = Just $ V2 (i * 50) (i * 50)
-      , pathing = Just $ Goal $ V2 400 300
-      , speed   = Just 50
-      , selected = Just ()
-      }
 
 
 
