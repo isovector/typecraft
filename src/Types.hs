@@ -5,7 +5,7 @@
 
 module Types where
 
-import Control.Lens (makeLenses)
+import Control.Lens (makeLenses, makePrisms)
 import Game.Sequoia.Window (MouseButton (..))
 import Data.Ecstasy
 import Game.Sequoia
@@ -84,4 +84,6 @@ type World = EntWorld 'WorldOf
 makeLenses ''LocalState
 makeLenses ''Attack
 makeLenses ''Limit
+
+makePrisms ''UnitType
 

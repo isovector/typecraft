@@ -29,6 +29,7 @@ initialize = do
   void $ newEntity defEntity
     { pos = Just $ V2 100 500
     , attack = Just $ Attack (Just $ TargetUnit $ Ent 7) (Limit 0.25 0.25) 100
+    , unitType = Just Unit
     }
 
   for_ [0 .. 10] $ \i -> do
@@ -179,12 +180,16 @@ player mouse = do
 draw :: Mouse -> Game [Form]
 draw mouse = do
   es <- efor $ const $ do
-    p <- recv pos
-    z <- recvFlag selected
-    o <- recvDef neutralPlayer owner
+    p  <- recv pos
+    z  <- recvFlag selected
+    o  <- recvDef neutralPlayer owner
+    ut <- recv unitType
+
     pure $ move p $ group
       [ boolMonoid z $ traced' (rgb 0 1 0) $ circle 10
-      , filled (pColor o) $ rect 5 5
+      , case ut of
+          Unit      -> filled (pColor o) $ rect 5 5
+          Missile _ -> filled (rgb 0.7 0.7 0.7) $ circle 2
       ]
 
   -- draw hud
