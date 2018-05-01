@@ -15,6 +15,7 @@ cabal-version:       >=1.10
 executable typecraft
   main-is:             Main.hs
   -- other-modules:
+  ghc-options: -Wall
   default-extensions: DataKinds
                     , FlexibleInstances
                     , GADTs
@@ -27,22 +28,16 @@ executable typecraft
                     , ViewPatterns
 
   build-depends: base
-               , astar
                , base-prelude
-               , constraints
                , containers
-               , unordered-containers
-               , data-default
+               , ecstasy
                , frpnow
-               , htiled
-               , aeson-tiled
                , lens
                , linear
                , mtl
-               , recursion-schemes
                , sequoia
                , transformers
-               , QuadTree
+               , unordered-containers
   hs-source-dirs:      src
   default-language:    Haskell2010
 
