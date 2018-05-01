@@ -28,16 +28,7 @@ initialize :: Game ()
 initialize = do
   void $ newEntity defEntity
     { pos = Just $ V2 100 500
-    , unitType = Just $ Missile $ TargetGround $ V2 600 100
-    , speed = Just 300
-    , owner = Just neutralPlayer
-    }
-
-  void $ newEntity defEntity
-    { pos = Just $ V2 100 400
-    , unitType = Just $ Missile $ TargetUnit $ Ent 8
-    , speed = Just 50
-    , owner = Just neutralPlayer
+    , attack = Just $ Attack (Just $ TargetUnit $ Ent 7) (Limit 0.25 0.25) 100
     }
 
   for_ [0 .. 10] $ \i -> do
@@ -62,8 +53,44 @@ moveTowards dt g = do
   pure (dx < dist, p + dx *^ normalize dir)
 
 
-update :: Time -> Game ()
-update dt = do
+updateAttacks :: Time -> Game ()
+updateAttacks dt = do
+  emap $ do
+    a <- recv attack
+    Just _ <- pure $ _aTarget a
+    pure defEntity'
+      { attack = Set $ a & aCooldown . limVal -~ dt
+      }
+
+  zz <- efor $ const $ do
+    p      <- recv pos
+    a      <- recv attack
+    Just t <- pure $ _aTarget a
+    o      <- recvDef neutralPlayer owner
+    guard $ a^.aCooldown.limVal < 0
+    pure (p, t, _aProjSpeed a, o)
+
+  emap $ do
+    a <- recv attack
+    guard $ a ^. aCooldown . limVal < 0
+    pure defEntity'
+      { attack = Set $ a & aCooldown.limVal .~ a^.aCooldown.limMax
+      }
+
+  for_ zz $ \(p, t, s, o) ->
+    newEntity defEntity
+      { pos      = Just p
+      , unitType = Just $ Missile t
+      , speed    = Just s
+      , owner    = Just o
+      }
+
+
+
+
+
+updateMissiles :: Time -> Game ()
+updateMissiles dt = do
   missileGround <- efor $ \ent -> do
     Missile (TargetGround g) <- recv unitType
     pure (ent, g)
@@ -89,16 +116,10 @@ update dt = do
 
 
 
-  -- do ground missiles
-  emap $ do
-    Missile (TargetGround g) <- recv unitType
-    (notThereYet, p) <- moveTowards dt g
-
-    pure $ case notThereYet of
-      False -> delEntity
-      True  -> defEntity'
-        { pos     = Set p
-        }
+update :: Time -> Game ()
+update dt = do
+  updateAttacks dt
+  updateMissiles dt
 
   -- do walking
   emap $ do
@@ -132,8 +153,10 @@ player mouse = do
         (tl, br) = canonicalizeV2 p1 p2
 
     emap $ do
-      p <- recv pos
-      o <- recv owner
+      p    <- recv pos
+      o    <- recv owner
+      Unit <- recv unitType
+
       guard $ o == lPlayer
       pure defEntity'
         { selected =

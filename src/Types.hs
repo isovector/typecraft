@@ -26,6 +26,20 @@ data LocalState = LocalState
   , _lsPlayer :: Player
   }
 
+
+data Limit a = Limit
+  { _limVal :: a
+  , _limMax :: a
+  }
+  deriving (Eq, Ord, Show)
+
+
+data Attack = Attack
+  { _aTarget    :: Maybe Target
+  , _aCooldown  :: Limit Time
+  , _aProjSpeed :: Double
+  }
+
 type Underlying = State LocalState
 type Query = QueryT EntWorld Underlying
 
@@ -59,6 +73,7 @@ data EntWorld f = World
   , selected :: Flag f
   , unitType :: Field f UnitType
   , owner    :: Field f Player
+  , attack   :: Field f Attack
   }
   deriving (Generic)
 
@@ -67,4 +82,6 @@ type World = EntWorld 'WorldOf
 
 
 makeLenses ''LocalState
+makeLenses ''Attack
+makeLenses ''Limit
 
