@@ -1,13 +1,34 @@
-{-# LANGUAGE DeriveGeneric #-}
+{-# LANGUAGE DeriveAnyClass     #-}
+{-# LANGUAGE DeriveGeneric      #-}
+{-# LANGUAGE StandaloneDeriving #-}
+{-# LANGUAGE TemplateHaskell    #-}
 
 module Types where
 
+import Control.Lens (makeLenses)
+import Game.Sequoia.Window (MouseButton (..))
 import Data.Ecstasy
 import Game.Sequoia
-import Data.Functor.Identity (Identity)
+import Control.Monad.State
 
 
-type Game = SystemT EntWorld Identity
+data Mouse = Mouse
+  { mDown    :: MouseButton -> Bool
+  , mUp      :: MouseButton -> Bool
+  , mPress   :: MouseButton -> Bool
+  , mUnpress :: MouseButton -> Bool
+  , mPos     :: V2
+  }
+
+
+data LocalState = LocalState
+  { _lsSelBox :: Maybe V2
+  }
+
+type Underlying = State LocalState
+
+
+type Game = SystemT EntWorld Underlying
 
 data Nav
   = Goal V2
@@ -18,6 +39,7 @@ data UnitType
 data Player = Player
   { pColor :: Color
   }
+  deriving (Eq)
 
 
 type Flag f = Component f 'Field ()
@@ -35,4 +57,7 @@ data EntWorld f = World
 
 
 type World = EntWorld 'WorldOf
+
+
+makeLenses ''LocalState
 
