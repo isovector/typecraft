@@ -33,14 +33,19 @@ canonicalizeV2 v1@(V2 x y) v2@(V2 x' y')
     | liftV2 (<=) v1 v2 = (v1, v2)
     | liftV2 (<=) v2 v1 = (v2, v1)
     | otherwise = canonicalizeV2 (V2 x y') (V2 x' y)
+canonicalizeV2 _ _ = error "impossible"
 
 
 liftV2 :: (Double -> Double -> Bool) -> V2 -> V2 -> Bool
 liftV2 f (V2 x y) (V2 x' y') = f x x' && f y y'
+liftV2 _ _ _ = error "impossible"
 
 
 recv :: (EntWorld 'FieldOf -> Maybe a) -> Query a
 recv = E.get
+
+recvMaybe :: (EntWorld 'FieldOf -> Maybe a) -> Query (Maybe a)
+recvMaybe = E.getMaybe
 
 
 boolMonoid :: Monoid m => Bool -> m -> m
@@ -58,6 +63,41 @@ recvDef
     -> (EntWorld 'FieldOf -> Maybe z)
     -> Query z
 recvDef z = fmap (maybe z id) . getMaybe
+
+type EntTarget world m = SystemT world m [Ent]
+
+
+allEnts :: Monad m => EntTarget world m
+allEnts = do
+  (es, _) <- get
+  pure $ Ent <$> [0 .. es - 1]
+
+anEnt :: Monad m => Ent -> EntTarget world m
+anEnt = pure . pure
+
+
+eover
+    :: ( HasWorld world
+       , Monad m
+       )
+    => EntTarget world m
+    -> QueryT world m (a, world 'SetterOf)
+    -> SystemT world m [a]
+eover t f = do
+  es <- t
+  fmap catMaybes $ for es $ \e -> do
+    cs <- getEntity e
+    mset <- lift $ unQueryT f cs
+    case mset of
+      Just (a, setter) -> do
+        setEntity e setter
+        pure $ Just a
+      Nothing ->  pure Nothing
+
+
+maybeToUpdate :: Maybe a -> Update a
+maybeToUpdate Nothing  = Unset
+maybeToUpdate (Just a) = Set a
 
 
 runGame

@@ -4,7 +4,7 @@ module Main where
 
 import Control.FRPNow.Time (delayTime)
 import Game.Sequoia.Window (mousePos, mouseButtons)
-import Game.Sequoia.Keyboard
+-- import Game.Sequoia.Keyboard
 import Overture hiding (init)
 
 
@@ -23,22 +23,28 @@ mePlayer = Player $ rgb 1 0 0
 neutralPlayer :: Player
 neutralPlayer = Player $ rgb 0.25 0.55 0.95
 
+gunAttackData :: Attack
+gunAttackData = Attack
+  { _aCooldown  = Limit 0 0.75
+  , _aProjSpeed = 100
+  , _aFx        = FxDamage 10
+  , _aRange     = 500
+  }
+
 
 initialize :: Game ()
 initialize = do
-  void $ newEntity defEntity
-    { pos = Just $ V2 100 500
-    , attack = Just $ Attack (Just $ TargetUnit $ Ent 7) (Limit 0.25 0.25) 100
-    , unitType = Just Unit
-    }
-
   for_ [0 .. 10] $ \i -> do
+    let mine = mod (round i) 2 == (0 :: Int)
     newEntity defEntity
-      { pos      = Just $ V2 (i * 50) (i * 50)
+      { pos      = Just $ V2 (i * 30 + bool 0 400 mine) (i * 50)
+      , attack   = Just gunAttackData
+      , target   = Just $ TargetUnit $ Ent $ round i + 1
       , speed    = Just 50
-      , selected = bool Nothing (Just ()) $ mod (round i) 2 == (0 :: Int)
-      , owner    = Just $ bool neutralPlayer mePlayer $ mod (round i) 2 == (0 :: Int)
+      , selected = bool Nothing (Just ()) mine
+      , owner    = Just $ bool neutralPlayer mePlayer mine
       , unitType = Just Unit
+      , hp       = Just $ Limit 100 100
       }
 
 
@@ -58,18 +64,18 @@ updateAttacks :: Time -> Game ()
 updateAttacks dt = do
   emap $ do
     a <- recv attack
-    Just _ <- pure $ _aTarget a
+    with target
     pure defEntity'
-      { attack = Set $ a & aCooldown . limVal -~ dt
+      { attack = Set $ a & aCooldown.limVal -~ dt
       }
 
   zz <- efor $ const $ do
-    p      <- recv pos
-    a      <- recv attack
-    Just t <- pure $ _aTarget a
-    o      <- recvDef neutralPlayer owner
+    p <- recv pos
+    a <- recv attack
+    t <- recv target
+    o <- recvDef neutralPlayer owner
     guard $ a^.aCooldown.limVal < 0
-    pure (p, t, _aProjSpeed a, o)
+    pure (p, t, a, o)
 
   emap $ do
     a <- recv attack
@@ -78,11 +84,12 @@ updateAttacks dt = do
       { attack = Set $ a & aCooldown.limVal .~ a^.aCooldown.limMax
       }
 
-  for_ zz $ \(p, t, s, o) ->
+  for_ zz $ \(p, t, a, o) ->
     newEntity defEntity
       { pos      = Just p
       , unitType = Just $ Missile t
-      , speed    = Just s
+      , attack   = Just a
+      , speed    = Just $ _aProjSpeed a
       , owner    = Just o
       }
 
@@ -104,23 +111,54 @@ updateMissiles dt = do
     p <- runQueryT e $ recv pos
     pure (ent, p)
 
-  for_ (missileGround ++ mapMaybe sequence missileTargeted) $ \(ent, p) -> do
-    s <- runQueryT ent $ do
-      (notThereYet, p') <- moveTowards dt p
+  for_ (fmap (fmap Just) missileGround ++ missileTargeted) $ \(ent, mp) -> do
+    zs <- fmap catMaybes $ eover (anEnt ent) $ do
+      phere <- (,,) <$> recv pos <*> recv attack <*> recv unitType
+      case mp of
+        -- TODO(sandy): maybe don't return nothing here
+        Nothing -> pure (Nothing, delEntity)
+        Just p -> do
+          (notThereYet, p') <- moveTowards dt p
 
-      pure $ case notThereYet of
-        False -> delEntity
-        True  -> defEntity'
-          { pos = Set p'
-          }
-    for_ s $ setEntity ent
+          pure $ case notThereYet of
+            False -> (Just phere, delEntity)
+            True  -> (Nothing,) $ defEntity'
+              { pos = Set p'
+              }
+    for_ zs $ \(a, b, c) -> explodeMissile a b c
 
+
+explodeMissile :: V2 -> Attack -> UnitType -> Game ()
+explodeMissile p a (Missile t) = do
+  let fx =
+        case _aFx a of
+          FxDamage dmg -> do
+            health <- recvMaybe hp
+            pure $ ((),) $ defEntity' { hp = maybeToUpdate $ fmap (limVal -~ dmg) health }
+
+
+  case t of
+    TargetUnit ent -> do
+      void $ eover (anEnt ent) fx
+
+explodeMissile _ _ _ = error "can't explode anything but a missile"
 
 
 update :: Time -> Game ()
 update dt = do
   updateAttacks dt
   updateMissiles dt
+
+  -- death to infidels
+  emap $ do
+    Unit <- recv unitType
+    Limit health _ <- recv hp
+
+    pure $ if health <= 0
+              then delEntity
+              else defEntity'
+
+
 
   -- do walking
   emap $ do
@@ -224,7 +262,7 @@ getMouse buttons oldButtons mouse = do
 run :: N (B Element)
 run = do
   clock    <- deltaTime <$> getClock
-  keyboard <- getKeyboard
+  -- keyboard <- getKeyboard
 
   mouseB <- do
     mb    <- mouseButtons
@@ -240,7 +278,7 @@ run = do
   let init = fst $ runGame (realState, (0, defWorld)) initialize
 
   (game, _) <- foldmp init $ \state -> do
-    arrs  <- sample $ arrows keyboard
+    -- arrs  <- sample $ arrows keyboard
     dt    <- sample clock
     mouse <- sample mouseB
 
