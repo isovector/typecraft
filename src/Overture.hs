@@ -152,3 +152,11 @@ wait t | t <= 0 = pure ()
            dt <- await
            wait $ t - dt
 
+
+waitUntil :: Game Bool -> Task ()
+waitUntil what = do
+  fix $ \f -> do
+    void await
+    finished <- lift what
+    unless finished f
+

@@ -14,7 +14,7 @@ cabal-version:       >=1.10
 
 executable typecraft
   main-is:             Main.hs
-  -- other-modules:
+  other-modules: AbilityUtils
   ghc-options: -Wall
   default-extensions: DataKinds
                     , FlexibleInstances

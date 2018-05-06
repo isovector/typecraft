@@ -55,6 +55,12 @@ type Query = QueryT EntWorld Underlying
 type Game = SystemT EntWorld Underlying
 type Task = Coroutine (Await Time) Game
 
+
+type Proto = EntWorld 'FieldOf
+type Ability = Ent -> Target -> Task ()
+type DamageHandler = V2 -> Target -> Game ()
+
+
 data Nav
   = Goal V2
 

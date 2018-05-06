@@ -7,6 +7,7 @@ import Control.FRPNow.Time (delayTime)
 import Game.Sequoia.Window (mousePos, mouseButtons)
 -- import Game.Sequoia.Keyboard
 import Overture hiding (init)
+import AbilityUtils
 
 
 gameWidth :: Num t => t
@@ -24,54 +25,13 @@ mePlayer = Player $ rgb 1 0 0
 neutralPlayer :: Player
 neutralPlayer = Player $ rgb 0.25 0.55 0.95
 
+
 gunAttackData :: Attack
 gunAttackData = Attack
   { _aCooldown  = Limit 0 0.75
   , _aRange     = 500
-  , _aTask      = missile missileEnt (doDamage 100)
+  , _aTask      = missile (missileEnt 100) (doDamage 30)
   }
-
-missileEnt :: EntWorld 'FieldOf
-missileEnt   = defEntity
-  { unitType = Just Missile
-  , speed    = Just 100
-  }
-
-
-findTarget :: Target -> Game (Maybe V2)
-findTarget (TargetGround v2) = pure $ Just v2
-findTarget (TargetUnit e)    = fmap pos $ getEntity e
-
-
-missile :: EntWorld 'FieldOf -> (Target -> Game ()) -> Ent -> Target -> Task ()
-missile proto fx attacker t = do
-  mpos0 <- lift $ fmap pos $ getEntity attacker
-  mtpos <- lift $ findTarget t
-  case (mpos0, mtpos) of
-    (Just pos0, Just tpos) -> do
-      ment <- lift $ newEntity proto
-        { pos     = Just pos0
-        , pathing = Just $ Goal tpos
-        }
-      fix $ \f -> do
-        void await
-        me <- lift (getEntity ment)
-        unless (isNothing $ pathing me) f
-      lift $ do
-        fx t
-        setEntity ment delEntity
-    _ -> pure ()
-
-
-doDamage :: Int -> Target -> Game ()
-doDamage dmg (TargetUnit e) =
-  void $ eover (anEnt e) . const $ do
-    health <- recv hp
-    pure . ((),) $ defEntity'
-      { hp = Set $ health & limVal -~ dmg
-      }
-doDamage _ (TargetGround _) =
-  error "can't damage ground"
 
 
 initialize :: Game ()
@@ -122,7 +82,6 @@ update :: Time -> Game ()
 update dt = do
   pumpTasks dt
   updateAttacks dt
-  -- updateMissiles dt
 
   -- death to infidels
   emap $ do
@@ -132,8 +91,6 @@ update dt = do
     pure $ if health <= 0
               then delEntity
               else defEntity'
-
-
 
   -- do walking
   emap $ do
