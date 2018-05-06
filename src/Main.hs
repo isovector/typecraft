@@ -73,6 +73,39 @@ stopAction = Action
   }
 
 
+separateTask :: Task ()
+separateTask = forever $ do
+  let howOften = 0.1
+  wait howOften
+
+  lift $ do
+    entPos <- efor $ \e -> do
+      Unit <- recv unitType
+      -- TODO(sandy): constant for def size
+      (,,,) <$> pure e
+            <*> recv pos
+            <*> recvDef 10 entSize
+            <*> recvMaybe pathing
+
+    let pairwise = do
+          a@(e1, _, _, _) <- entPos
+          b@(e2, _, _, _) <- entPos
+          guard $ e1 /= e2
+          pure (a, b)
+
+    for_ pairwise $ \((e1, p1, s1, g1), (e2, p2, s2, g2)) -> do
+      let dir = normalize $ p1 - p2
+          s   = s1 + s2
+      when (withinV2 p1 p2 s) $ do
+        setEntity e1 defEntity'
+          { pos = Set $ p1 + dir ^* s1
+          , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p2 s2) g1
+          }
+        setEntity e2 defEntity'
+          { pos = Set $ p2 - dir ^* s2
+          , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p1 s1) g2
+          }
+
 
 psiStorm :: Ability
 psiStorm _ (TargetUnit {}) = error "no can do"
@@ -132,6 +165,8 @@ initialize = do
     , hp       = Just $ Limit 100 100
     , actions  = Just [psiStormAction]
     }
+
+  start separateTask
 
 
 moveTowards :: Time -> V2 -> Query (Bool, V2)
@@ -308,9 +343,9 @@ draw mouse = do
     sz <- recvDef 10 entSize
 
     pure $ move p $ group
-      [ boolMonoid z $ traced' (rgb 0 1 0) $ circle 10
+      [ boolMonoid z $ traced' (rgb 0 1 0) $ circle $ sz + 5
       , case ut of
-          Unit    -> filled (pColor o) $ ellipse sz sz
+          Unit    -> filled (pColor o) $ circle sz
           Missile -> filled (rgb 0.7 0.7 0.7) $ circle 2
       ]
 

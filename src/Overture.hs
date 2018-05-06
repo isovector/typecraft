@@ -204,3 +204,10 @@ during dur f = do
     let total' = total + dt
     when (total' < dur) $ loop total'
 
+
+withinV2 :: V2 -> V2 -> Double -> Bool
+withinV2 p1 p2 d =
+  let qd = quadrance $ p1 - p2
+      d1 = d * d
+   in qd <= d1
+
