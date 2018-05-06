@@ -3,8 +3,15 @@
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell    #-}
 
-module Types where
+module Types
+  ( module Types
+  , await
+  , resume
+  , Await (..)
+  ) where
 
+import Control.Monad.Coroutine
+import Control.Monad.Coroutine.SuspensionFunctors
 import Control.Lens (makeLenses, makePrisms)
 import Game.Sequoia.Window (MouseButton (..))
 import Data.Ecstasy
@@ -24,6 +31,7 @@ data Mouse = Mouse
 data LocalState = LocalState
   { _lsSelBox :: Maybe V2
   , _lsPlayer :: Player
+  , _lsTasks  :: [Task ()]
   }
 
 
@@ -36,19 +44,16 @@ data Limit a = Limit
 
 data Attack = Attack
   { _aCooldown  :: Limit Time
-  , _aProjSpeed :: Double
   , _aRange     :: Double
-  , _aFx        :: Fx
+  , _aTask      :: Ent -> Target -> Task ()
   }
-
-data Fx
-  = FxDamage Int
 
 type Underlying = State LocalState
 type Query = QueryT EntWorld Underlying
 
 
 type Game = SystemT EntWorld Underlying
+type Task = Coroutine (Await Time) Game
 
 data Nav
   = Goal V2
@@ -59,7 +64,7 @@ data Target
 
 data UnitType
   = Unit
-  | Missile Target
+  | Missile
 
 data Player = Player
   { pColor :: Color

@@ -81,13 +81,13 @@ eover
        , Monad m
        )
     => EntTarget world m
-    -> QueryT world m (a, world 'SetterOf)
+    -> (Ent -> QueryT world m (a, world 'SetterOf))
     -> SystemT world m [a]
 eover t f = do
   es <- t
   fmap catMaybes $ for es $ \e -> do
     cs <- getEntity e
-    mset <- lift $ unQueryT f cs
+    mset <- lift $ unQueryT (f e) cs
     case mset of
       Just (a, setter) -> do
         setEntity e setter
@@ -129,4 +129,26 @@ fi = fromIntegral
 
 toV2 :: (Int, Int) -> V2
 toV2 = uncurry V2 . (fi *** fi)
+
+
+pumpTasks :: Time -> Game ()
+pumpTasks dt = do
+  tasks  <- lift $ gets _lsTasks
+  tasks' <- fmap catMaybes . for tasks $ \task -> do
+    z <- resume task
+    pure $ case z of
+      Left (Await f) -> Just $ f dt
+      Right _        -> Nothing
+  lift . modify $ lsTasks .~ tasks'
+
+
+start :: Task () -> Game ()
+start t = lift . modify $ lsTasks %~ (t :)
+
+
+wait :: Time -> Task ()
+wait t | t <= 0 = pure ()
+       | otherwise = do
+           dt <- await
+           wait $ t - dt
 
