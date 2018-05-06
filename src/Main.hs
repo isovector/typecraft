@@ -51,17 +51,25 @@ psiStormAction = Action
   }
 
 
-attackAbility :: Ability
-attackAbility e t = do
-  lift $ setEntity e defEntity' { target = Set t }
-
-
 attackAction :: Action
 attackAction = Action
   { _acName   = "Attack"
   , _acHotkey = Just AKey
   , _acTType  = TargetTypeUnit ()
-  , _acTask   = attackAbility
+  , _acTask   = \e t -> lift $ setEntity e defEntity' { target = Set t }
+  }
+
+
+stopAction :: Action
+stopAction = Action
+  { _acName   = "Stop"
+  , _acHotkey = Just SKey
+  , _acTType  = TargetTypeInstant ()
+  , _acTask   = \e _ ->
+      lift $ setEntity e defEntity'
+        { target  = Unset
+        , pathing = Unset
+        }
   }
 
 
@@ -110,7 +118,7 @@ initialize = do
       , owner    = Just $ bool neutralPlayer mePlayer mine
       , unitType = Just Unit
       , hp       = Just $ Limit 100 100
-      , actions  = Just [attackAction]
+      , actions  = Just [attackAction, stopAction]
       }
 
   void $ newEntity defEntity
@@ -280,11 +288,11 @@ playerNotWaiting mouse kb = do
         case kPress kb hk of
           True  -> pure $ Just $ (Using sel $ _acTask act) <$ _acTType act
           False -> pure Nothing
-  let zz = join
-         . join
-         . join
-         . listToMaybe
-        $ sequence z
+  let zz = listToMaybe
+         . catMaybes
+         . fmap join
+         . catMaybes
+         $ sequence z
   lift . modify $ lsTargetType .~ zz
 
   pure ()
