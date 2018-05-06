@@ -8,6 +8,7 @@ import Game.Sequoia.Window (mousePos, mouseButtons)
 -- import Game.Sequoia.Keyboard
 import Overture hiding (init)
 import AbilityUtils
+import qualified Data.Map as M
 
 
 gameWidth :: Num t => t
@@ -29,7 +30,7 @@ neutralPlayer = Player $ rgb 0.25 0.55 0.95
 gunAttackData :: Attack
 gunAttackData = Attack
   { _aCooldown  = Limit 0 0.75
-  , _aRange     = 500
+  , _aRange     = 300
   , _aTask      = missile (missileEnt 300) $ \v2 t -> do
       doDamage (Just 30) 30 v2 t
       explosion v2 1 $ \d -> scale (d + 0.01)
@@ -69,15 +70,27 @@ moveTowards dt g = do
 
 updateAttacks :: Time -> Game ()
 updateAttacks dt = do
+  entPos <- fmap M.fromList . efor $ \e -> (,) <$> pure e <*> recv pos
+
   tasks <- fmap catMaybes . eover allEnts $ \e ->  do
+    p <- recv pos
     a <- recv attack
     t <- recv target
-    let cooldown' = a ^. aCooldown.limVal - dt
-        refresh = cooldown' < 0
-        action = bool Nothing (Just $ _aTask a e t) refresh
-        cooldown'' = bool cooldown' (a ^. aCooldown.limMax) refresh
+    let cooldown'  = a ^. aCooldown.limVal - dt
+        refresh    = cooldown' < 0
+        tpos       = case t of
+                       TargetGround v2 -> Just v2
+                       TargetUnit ent  -> M.lookup ent entPos
+        target'    = bool Unset Keep $ isJust tpos
+        rng        = a ^. aRange
+        dst        = fmap (quadrance . (p -)) tpos
+        refresh'   = refresh && maybe False (<= rng * rng) dst
+        cooldown'' = bool cooldown' (a ^. aCooldown.limMax) refresh'
+        action     = bool Nothing (Just $ _aTask a e t) refresh'
+
     pure $ (action,) $ defEntity'
       { attack = Set $ a & aCooldown.limVal .~ cooldown''
+      , target = target'
       }
 
   for_ tasks start
