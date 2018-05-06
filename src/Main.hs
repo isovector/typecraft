@@ -5,10 +5,11 @@ module Main where
 
 import Control.FRPNow.Time (delayTime)
 import Game.Sequoia.Window (mousePos, mouseButtons)
--- import Game.Sequoia.Keyboard
+import Game.Sequoia.Keyboard
 import Overture hiding (init)
 import AbilityUtils
 import qualified Data.Map as M
+import qualified Data.Set as S
 
 
 gameWidth :: Num t => t
@@ -41,17 +42,27 @@ gunAttackData = Attack
 
 
 
-psiStorm :: Ability
-psiStorm _ (TargetGround v2) = do
-  let size = 100
-      dmg = 100
-      flashTime = 0.1
-      waitPeriod = 0.75
-      cycles = 4
+psiStormAction :: Action
+psiStormAction = Action
+  { _acName   = "Psi Storm"
+  , _acHotkey = Just PKey
+  , _acTType  = TargetTypeGround ()
+  , _acTask   = psiStorm
+  }
 
-  let add = V2 size size ^* 0.5
-      p1 = v2 - add
-      p2 = v2 + add
+
+psiStorm :: Ability
+psiStorm _ (TargetUnit {}) = error "no can do"
+psiStorm _ (TargetGround v2) = do
+  let size       = 100
+      dmg        = 100
+      flashTime  = 0.1
+      waitPeriod = 0.75
+      cycles     = 4
+
+  let add  = V2 size size ^* 0.5
+      p1   = v2 - add
+      p2   = v2 + add
       form = rect size size
 
   lift . explosion v2 (waitPeriod * cycles)
@@ -95,6 +106,7 @@ initialize = do
     , owner    = Just mePlayer
     , unitType = Just Unit
     , hp       = Just $ Limit 100 100
+    , actions  = Just [psiStormAction]
     }
 
 
@@ -168,33 +180,65 @@ update dt = do
       }
 
 
-player :: Mouse -> Game ()
-player mouse = do
+player :: Mouse -> Keyboard -> Game ()
+player mouse kb = do
+  curTT <- lift $ gets _lsTargetType
+
+  case curTT of
+    Nothing -> playerNotWaiting mouse kb
+
+    Just tt ->  do
+      case tt of
+        TargetTypeInstant (Using ent a) -> do
+          start . a ent $ TargetUnit ent
+          unsetTT
+        TargetTypeGround (Using ent a) ->
+          when (mPress mouse buttonLeft) $ do
+            start
+              . a ent
+              . TargetGround
+              $ mPos mouse
+            unsetTT
+        TargetTypeUnit _ ->
+          error "fuck"
+
+
+  when (mPress mouse buttonRight) unsetTT
+
+unsetTT :: Game ()
+unsetTT = lift
+        . modify
+        $ lsTargetType .~ Nothing
+
+
+playerNotWaiting :: Mouse -> Keyboard -> Game ()
+playerNotWaiting mouse kb = do
   when (mPress mouse buttonLeft) $ do
     lift $ modify $ lsSelBox ?~ mPos mouse
 
   when (mUnpress mouse buttonLeft) $ do
     -- TODO(sandy): finicky
-    Just p1 <- lift $ gets _lsSelBox
-    lPlayer <- lift $ gets _lsPlayer
+    mp1 <- lift $ gets _lsSelBox
+    for_ mp1 $ \p1 -> do
+      lPlayer <- lift $ gets _lsPlayer
 
-    lift $ modify $ lsSelBox .~ Nothing
-    let p2 = mPos mouse
-        (tl, br) = canonicalizeV2 p1 p2
+      lift $ modify $ lsSelBox .~ Nothing
+      let p2 = mPos mouse
+          (tl, br) = canonicalizeV2 p1 p2
 
-    -- TODO(sandy): can we use "getUnitsInSquare" instead?
-    emap $ do
-      p    <- recv pos
-      o    <- recv owner
-      Unit <- recv unitType
+      -- TODO(sandy): can we use "getUnitsInSquare" instead?
+      emap $ do
+        p    <- recv pos
+        o    <- recv owner
+        Unit <- recv unitType
 
-      guard $ o == lPlayer
-      pure defEntity'
-        { selected =
-            case liftV2 (<=) tl p && liftV2 (<) p br of
-              True  -> Set ()
-              False -> Unset
-        }
+        guard $ o == lPlayer
+        pure defEntity'
+          { selected =
+              case liftV2 (<=) tl p && liftV2 (<) p br of
+                True  -> Set ()
+                False -> Unset
+          }
 
   when (mPress mouse buttonRight) $ do
     emap $ do
@@ -202,6 +246,24 @@ player mouse = do
       pure defEntity'
         { pathing = Set $ Goal $ mPos mouse
         }
+
+  allSel <- efor $ \e -> do
+    with selected
+    (,) <$> pure e
+        <*> recv actions
+
+  z <- for (listToMaybe allSel) $ \(sel, acts) -> do
+    for acts $ \act -> do
+      for (_acHotkey act) $ \hk -> do
+        case kPress kb hk of
+          True  -> pure $ Just $ (Using sel $ _acTask act) <$ _acTType act
+          False -> pure Nothing
+  let zz = join
+         . join
+         . join
+         . listToMaybe
+        $ sequence z
+  lift . modify $ lsTargetType .~ zz
 
   pure ()
 
@@ -256,10 +318,27 @@ getMouse buttons oldButtons mouse = do
   pure Mouse {..}
 
 
+getKB
+    :: B [Key]
+    -> B [Key]
+    -> B Keyboard
+getKB keys oldKeys = do
+  kDown     <- keys
+  kLastDown <- oldKeys
+  let kPress k   = elem k kDown && not (elem k kLastDown)
+      kUnpress k = elem k kLastDown && not (elem k kDown)
+      kPresses = S.toList $ S.fromList kDown S.\\ S.fromList kLastDown
+  pure Keyboard {..}
+
+
 run :: N (B Element)
 run = do
   clock    <- deltaTime <$> getClock
-  -- keyboard <- getKeyboard
+
+  keyboard <- do
+    kb <- getKeyboard
+    oldKb <- sample $ delayTime clock [] kb
+    pure $ getKB kb oldKb
 
   mouseB <- do
     mb    <- mouseButtons
@@ -268,9 +347,10 @@ run = do
     pure $ getMouse mb oldMb mpos
 
   let realState = LocalState
-        { _lsSelBox = Nothing
-        , _lsPlayer = mePlayer
-        , _lsTasks  = []
+        { _lsSelBox     = Nothing
+        , _lsPlayer     = mePlayer
+        , _lsTasks      = []
+        , _lsTargetType = Nothing
         }
 
   let init = fst $ runGame (realState, (0, defWorld)) initialize
@@ -278,10 +358,11 @@ run = do
   (game, _) <- foldmp init $ \state -> do
     -- arrs  <- sample $ arrows keyboard
     dt    <- sample clock
+    kb    <- sample keyboard
     mouse <- sample mouseB
 
     pure $ fst $ runGame state $ do
-      player mouse
+      player mouse kb
       update dt
 
   pure $ do

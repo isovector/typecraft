@@ -1,4 +1,5 @@
 {-# LANGUAGE DeriveAnyClass     #-}
+{-# LANGUAGE DeriveFunctor      #-}
 {-# LANGUAGE DeriveGeneric      #-}
 {-# LANGUAGE StandaloneDeriving #-}
 {-# LANGUAGE TemplateHaskell    #-}
@@ -29,11 +30,18 @@ data Mouse = Mouse
   , mPos     :: V2
   }
 
+data Keyboard = Keyboard
+  { kPress   :: Key -> Bool
+  , kUnpress :: Key -> Bool
+  , kPresses :: [Key]
+  }
+
 
 data LocalState = LocalState
-  { _lsSelBox :: Maybe V2
-  , _lsPlayer :: Player
-  , _lsTasks  :: [Task ()]
+  { _lsSelBox     :: Maybe V2
+  , _lsPlayer     :: Player
+  , _lsTasks      :: [Task ()]
+  , _lsTargetType :: Maybe (TargetType (Using Ability))
   }
 
 
@@ -66,7 +74,7 @@ type DamageHandler = V2 -> Target -> Game ()
 data Action = Action
   { _acName   :: String
   , _acHotkey :: Maybe Key
-  , _acTType  :: TargetType
+  , _acTType  :: TargetType ()
   , _acTask   :: Ability
   }
 
@@ -74,10 +82,19 @@ data Action = Action
 data Nav
   = Goal V2
 
-data TargetType
-  = TargetTypeUnit
-  | TargetTypeGround
-  | TargetTypeInstant
+
+data TargetType a
+  = TargetTypeUnit    { unTargetType :: a }
+  | TargetTypeGround  { unTargetType :: a }
+  | TargetTypeInstant { unTargetType :: a }
+  deriving (Functor)
+
+
+data Using a = Using
+  { _usingEnt  :: Ent
+  , _usingWhat :: a
+  }
+  deriving (Functor)
 
 data Target
   = TargetGround V2
