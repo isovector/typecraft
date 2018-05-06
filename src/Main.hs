@@ -30,7 +30,8 @@ gunAttackData :: Attack
 gunAttackData = Attack
   { _aCooldown  = Limit 0 0.75
   , _aRange     = 500
-  , _aTask      = missile (missileEnt 100) (doDamage 30)
+  , _aTask      = missile (missileEnt 100)
+                          (doDamage 0 30)
   }
 
 
@@ -134,7 +135,6 @@ player mouse = do
               True  -> Set ()
               False -> Unset
         }
-
 
   when (mPress mouse buttonRight) $ do
     emap $ do

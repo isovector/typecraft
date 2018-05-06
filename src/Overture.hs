@@ -14,7 +14,7 @@ module Overture
   , module Control.Monad.Trans.Class
   ) where
 
-import Linear (norm, normalize, (*^), (^*))
+import Linear (norm, normalize, (*^), (^*), quadrance)
 import Control.Lens hiding (without)
 import Types
 import BasePrelude hiding (group, rotate, lazy, index, uncons)
@@ -71,6 +71,9 @@ allEnts :: Monad m => EntTarget world m
 allEnts = do
   (es, _) <- get
   pure $ Ent <$> [0 .. es - 1]
+
+someEnts :: Monad m => [Ent] -> EntTarget world m
+someEnts = pure
 
 anEnt :: Monad m => Ent -> EntTarget world m
 anEnt = pure . pure
@@ -159,4 +162,14 @@ waitUntil what = do
     void await
     finished <- lift what
     unless finished f
+
+
+getUnitsInRange :: V2 -> Double -> Game [(Ent, Double)]
+getUnitsInRange v2 rng =
+  efor $ \e -> do
+    Unit <- recv unitType
+    p <- recv pos
+    let x = quadrance $ p - v2
+    guard $ x <= rng * rng
+    pure (e, sqrt x)
 

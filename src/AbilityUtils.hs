@@ -11,15 +11,28 @@ findTarget (TargetGround v2) = pure $ Just v2
 findTarget (TargetUnit e)    = fmap pos $ getEntity e
 
 
-doDamage :: Int -> DamageHandler
-doDamage dmg _ (TargetUnit e) =
-  void . eover (anEnt e) . const $ do
-    health <- recv hp
-    pure . ((),) $ defEntity'
-      { hp = Set $ health & limVal -~ dmg
-      }
-doDamage _ _ (TargetGround _) =
-  error "can't damage ground"
+doDamage :: Double -> Int -> DamageHandler
+doDamage splash dmg v2 (TargetUnit e) = do
+  if splash == 0
+     then void . eover (anEnt e)
+               . const
+               . fmap ((),)
+               $ performDamage dmg
+     else doDamage splash dmg v2 $ TargetGround v2
+doDamage splash dmg v2 (TargetGround {}) = do
+  units <- fmap fst <$> getUnitsInRange v2 splash
+  void . eover (someEnts units)
+       . const
+       . fmap ((),)
+       $ performDamage dmg
+
+
+performDamage :: Int -> Query (EntWorld 'SetterOf)
+performDamage dmg = do
+  health <- recv hp
+  pure defEntity'
+    { hp = Set $ health & limVal -~ dmg
+    }
 
 
 missile :: EntWorld 'FieldOf -> DamageHandler -> Ability
