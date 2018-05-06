@@ -83,6 +83,7 @@ type Field f a = Component f 'Field a
 
 data EntWorld f = World
   { pos      :: Field f V2
+  , gfx      :: Field f Form
   , hp       :: Field f (Limit Int)
   , pathing  :: Field f Nav
   , speed    :: Field f Double

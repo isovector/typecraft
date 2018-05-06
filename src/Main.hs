@@ -30,8 +30,12 @@ gunAttackData :: Attack
 gunAttackData = Attack
   { _aCooldown  = Limit 0 0.75
   , _aRange     = 500
-  , _aTask      = missile (missileEnt 100)
-                          (doDamage 0 30)
+  , _aTask      = missile (missileEnt 300) $ \v2 t -> do
+      doDamage (Just 30) 30 v2 t
+      explosion v2 1 $ \d -> scale (d + 0.01)
+                           . filled (rgba 1 0 0 $ 1 - d / 2)
+                           . circle
+                           $ 8 + d * 3
   }
 
 
@@ -161,6 +165,11 @@ draw mouse = do
           Missile -> filled (rgb 0.7 0.7 0.7) $ circle 2
       ]
 
+  exs <- efor $ const $ do
+    p <- recv pos
+    g <- recv gfx
+    pure $ move p g
+
   -- draw hud
   box <- lift $ gets _lsSelBox
   let selbox =
@@ -172,6 +181,7 @@ draw mouse = do
           Nothing -> mempty
 
   pure $ es
+      ++ exs
       ++ [ selbox
          ]
 

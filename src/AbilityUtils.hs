@@ -6,25 +6,40 @@ module AbilityUtils where
 import Overture hiding (init)
 
 
+explosion :: V2 -> Time -> (Double -> Form) -> Game ()
+explosion p dur draw = do
+  me <- newEntity $ defEntity
+    { pos = Just p
+    , gfx = Just $ draw 0
+    }
+  start $ do
+    during dur $ \delta ->
+      lift $ setEntity me defEntity'
+        { gfx = Set $ draw delta
+        }
+    lift $ setEntity me delEntity
+
+
 findTarget :: Target -> Game (Maybe V2)
 findTarget (TargetGround v2) = pure $ Just v2
 findTarget (TargetUnit e)    = fmap pos $ getEntity e
 
 
-doDamage :: Double -> Int -> DamageHandler
+doDamage :: Maybe Double -> Int -> DamageHandler
 doDamage splash dmg v2 (TargetUnit e) = do
-  if splash == 0
+  if splash == Nothing
      then void . eover (anEnt e)
                . const
                . fmap ((),)
                $ performDamage dmg
      else doDamage splash dmg v2 $ TargetGround v2
-doDamage splash dmg v2 (TargetGround {}) = do
+doDamage (Just splash) dmg v2 (TargetGround {}) = do
   units <- fmap fst <$> getUnitsInRange v2 splash
   void . eover (someEnts units)
        . const
        . fmap ((),)
        $ performDamage dmg
+doDamage Nothing _ _ (TargetGround {}) = pure ()
 
 
 performDamage :: Int -> Query (EntWorld 'SetterOf)

@@ -17,7 +17,7 @@ module Overture
 import Linear (norm, normalize, (*^), (^*), quadrance)
 import Control.Lens hiding (without)
 import Types
-import BasePrelude hiding (group, rotate, lazy, index, uncons)
+import BasePrelude hiding (group, rotate, lazy, index, uncons, loop)
 import Game.Sequoia
 import Game.Sequoia.Utils (showTrace)
 import Game.Sequoia.Window (MouseButton (..))
@@ -137,12 +137,13 @@ toV2 = uncurry V2 . (fi *** fi)
 pumpTasks :: Time -> Game ()
 pumpTasks dt = do
   tasks  <- lift $ gets _lsTasks
+  lift . modify $ lsTasks .~ []
   tasks' <- fmap catMaybes . for tasks $ \task -> do
     z <- resume task
     pure $ case z of
       Left (Await f) -> Just $ f dt
       Right _        -> Nothing
-  lift . modify $ lsTasks .~ tasks'
+  lift . modify $ lsTasks <>~ tasks'
 
 
 start :: Task () -> Game ()
@@ -172,4 +173,13 @@ getUnitsInRange v2 rng =
     let x = quadrance $ p - v2
     guard $ x <= rng * rng
     pure (e, sqrt x)
+
+
+during :: Time -> (Double -> Task ()) -> Task ()
+during dur f = do
+  flip fix 0 $ \loop total -> do
+    f $ total / dur
+    dt <- await
+    let total' = total + dt
+    when (total' < dur) $ loop total'
 
