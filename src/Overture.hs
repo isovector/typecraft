@@ -185,6 +185,17 @@ getUnitsInSquare p1 p2 = do
     pure e
 
 
+getUnitAtPoint :: V2 -> Game (Maybe Ent)
+getUnitAtPoint p1 =
+  fmap listToMaybe . efor $ \e -> do
+    p    <- recv pos
+    rng  <- recv entSize
+    Unit <- recv unitType
+    let x = quadrance $ p1 - p
+    guard $ x <= rng * rng
+    pure e
+
+
 during :: Time -> (Double -> Task ()) -> Task ()
 during dur f = do
   flip fix 0 $ \loop total -> do

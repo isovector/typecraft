@@ -119,6 +119,7 @@ data EntWorld f = World
   , hp       :: Field f (Limit Int)
   , pathing  :: Field f Nav
   , speed    :: Field f Double
+  , entSize  :: Field f Double
   , selected :: Flag f
   , unitType :: Field f UnitType
   , owner    :: Field f Player

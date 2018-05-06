@@ -51,6 +51,21 @@ psiStormAction = Action
   }
 
 
+attackAbility :: Ability
+attackAbility e t = do
+  lift $ setEntity e defEntity' { target = Set t }
+
+
+attackAction :: Action
+attackAction = Action
+  { _acName   = "Attack"
+  , _acHotkey = Just AKey
+  , _acTType  = TargetTypeUnit ()
+  , _acTask   = attackAbility
+  }
+
+
+
 psiStorm :: Ability
 psiStorm _ (TargetUnit {}) = error "no can do"
 psiStorm _ (TargetGround v2) = do
@@ -89,18 +104,19 @@ initialize = do
     newEntity defEntity
       { pos      = Just $ V2 (i * 30 + bool 0 400 mine) (i * 50)
       , attack   = Just gunAttackData
-      -- , target   = Just $ TargetUnit $ Ent $ round i + 1
+      , entSize  = Just 10
       , speed    = Just 50
       , selected = bool Nothing (Just ()) mine
       , owner    = Just $ bool neutralPlayer mePlayer mine
       , unitType = Just Unit
       , hp       = Just $ Limit 100 100
+      , actions  = Just [attackAction]
       }
 
   void $ newEntity defEntity
     { pos      = Just $ V2 700 300
     , attack   = Just gunAttackData
-    , target   = Just $ TargetGround $ V2 400 300
+    , entSize  = Just 10
     , speed    = Just 100
     , selected = Just ()
     , owner    = Just mePlayer
@@ -199,8 +215,14 @@ player mouse kb = do
               . TargetGround
               $ mPos mouse
             unsetTT
-        TargetTypeUnit _ ->
-          error "fuck"
+        TargetTypeUnit (Using ent a) ->
+          when (mPress mouse buttonLeft) $ do
+            msel <- getUnitAtPoint $ mPos mouse
+            for_ msel $ \sel -> do
+              start
+                . a ent
+                $ TargetUnit sel
+              unsetTT
 
 
   when (mPress mouse buttonRight) unsetTT
@@ -275,11 +297,12 @@ draw mouse = do
     z  <- recvFlag selected
     o  <- recvDef neutralPlayer owner
     ut <- recv unitType
+    sz <- recvDef 10 entSize
 
     pure $ move p $ group
       [ boolMonoid z $ traced' (rgb 0 1 0) $ circle 10
       , case ut of
-          Unit    -> filled (pColor o) $ rect 5 5
+          Unit    -> filled (pColor o) $ ellipse sz sz
           Missile -> filled (rgb 0.7 0.7 0.7) $ circle 2
       ]
 
