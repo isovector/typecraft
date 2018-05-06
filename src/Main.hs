@@ -40,6 +40,37 @@ gunAttackData = Attack
   }
 
 
+
+psiStorm :: Ability
+psiStorm _ (TargetGround v2) = do
+  let size = 100
+      dmg = 100
+      flashTime = 0.1
+      waitPeriod = 0.75
+      cycles = 4
+
+  let add = V2 size size ^* 0.5
+      p1 = v2 - add
+      p2 = v2 + add
+      form = rect size size
+
+  lift . explosion v2 (waitPeriod * cycles)
+       . const
+       $ filled (rgba 0 0.8 1 0.3) form
+  for_ [0 .. cycles - 1] . const $ do
+    wait waitPeriod
+    lift $ do
+      explosion v2 flashTime
+        . const
+        $ filled (rgb 0 0.8 1) form
+      inRange <- getUnitsInSquare p1 p2
+      eover (someEnts inRange)
+        . const
+        . fmap ((),)
+        $ performDamage dmg
+
+
+
 initialize :: Game ()
 initialize = do
   for_ [0 .. 10] $ \i -> do
@@ -47,13 +78,24 @@ initialize = do
     newEntity defEntity
       { pos      = Just $ V2 (i * 30 + bool 0 400 mine) (i * 50)
       , attack   = Just gunAttackData
-      , target   = Just $ TargetUnit $ Ent $ round i + 1
+      -- , target   = Just $ TargetUnit $ Ent $ round i + 1
       , speed    = Just 50
       , selected = bool Nothing (Just ()) mine
       , owner    = Just $ bool neutralPlayer mePlayer mine
       , unitType = Just Unit
       , hp       = Just $ Limit 100 100
       }
+
+  void $ newEntity defEntity
+    { pos      = Just $ V2 700 300
+    , attack   = Just gunAttackData
+    , target   = Just $ TargetGround $ V2 400 300
+    , speed    = Just 100
+    , selected = Just ()
+    , owner    = Just mePlayer
+    , unitType = Just Unit
+    , hp       = Just $ Limit 100 100
+    }
 
 
 moveTowards :: Time -> V2 -> Query (Bool, V2)
@@ -140,6 +182,7 @@ player mouse = do
     let p2 = mPos mouse
         (tl, br) = canonicalizeV2 p1 p2
 
+    -- TODO(sandy): can we use "getUnitsInSquare" instead?
     emap $ do
       p    <- recv pos
       o    <- recv owner

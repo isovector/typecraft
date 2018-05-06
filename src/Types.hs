@@ -8,15 +8,17 @@ module Types
   , await
   , resume
   , Await (..)
+  , Key (..)
   ) where
 
+import Control.Lens (makeLenses, makePrisms)
 import Control.Monad.Coroutine
 import Control.Monad.Coroutine.SuspensionFunctors
-import Control.Lens (makeLenses, makePrisms)
-import Game.Sequoia.Window (MouseButton (..))
+import Control.Monad.State
 import Data.Ecstasy
 import Game.Sequoia
-import Control.Monad.State
+import Game.Sequoia.Keyboard
+import Game.Sequoia.Window (MouseButton (..))
 
 
 data Mouse = Mouse
@@ -61,8 +63,21 @@ type Ability = Ent -> Target -> Task ()
 type DamageHandler = V2 -> Target -> Game ()
 
 
+data Action = Action
+  { _acName   :: String
+  , _acHotkey :: Maybe Key
+  , _acTType  :: TargetType
+  , _acTask   :: Ability
+  }
+
+
 data Nav
   = Goal V2
+
+data TargetType
+  = TargetTypeUnit
+  | TargetTypeGround
+  | TargetTypeInstant
 
 data Target
   = TargetGround V2
@@ -92,6 +107,7 @@ data EntWorld f = World
   , owner    :: Field f Player
   , attack   :: Field f Attack
   , target   :: Field f Target
+  , actions  :: Field f [Action]
   }
   deriving (Generic)
 

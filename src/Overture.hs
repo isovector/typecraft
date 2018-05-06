@@ -17,8 +17,8 @@ module Overture
 import Linear (norm, normalize, (*^), (^*), quadrance)
 import Control.Lens hiding (without)
 import Types
-import BasePrelude hiding (group, rotate, lazy, index, uncons, loop)
-import Game.Sequoia
+import BasePrelude hiding (group, rotate, lazy, index, uncons, loop, inRange)
+import Game.Sequoia hiding (form)
 import Game.Sequoia.Utils (showTrace)
 import Game.Sequoia.Window (MouseButton (..))
 import Data.Ecstasy hiding (get)
@@ -173,6 +173,16 @@ getUnitsInRange v2 rng =
     let x = quadrance $ p - v2
     guard $ x <= rng * rng
     pure (e, sqrt x)
+
+
+getUnitsInSquare :: V2 -> V2 -> Game [Ent]
+getUnitsInSquare p1 p2 = do
+  let (tl, br) = canonicalizeV2 p1 p2
+  efor $ \e -> do
+    p    <- recv pos
+    Unit <- recv unitType
+    guard $ liftV2 (<=) tl p && liftV2 (<) p br
+    pure e
 
 
 during :: Time -> (Double -> Task ()) -> Task ()
