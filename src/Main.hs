@@ -90,7 +90,7 @@ separateTask = forever $ do
     let pairwise = do
           a@(e1, _, _, _) <- entPos
           b@(e2, _, _, _) <- entPos
-          guard $ e1 /= e2
+          guard $ e1 < e2
           pure (a, b)
 
     for_ pairwise $ \((e1, p1, s1, g1), (e2, p2, s2, g2)) -> do
@@ -140,7 +140,7 @@ psiStorm _ (TargetGround v2) = do
 
 initialize :: Game ()
 initialize = do
-  for_ [0 .. 10] $ \i -> do
+  for_ [0 .. 20] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
     newEntity defEntity
       { pos      = Just $ V2 (i * 30 + bool 0 400 mine) (i * 50)

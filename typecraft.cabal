@@ -30,6 +30,7 @@ executable typecraft
   build-depends: base
                , base-prelude
                , containers
+               , array
                , ecstasy
                , frpnow
                , lens
