@@ -14,18 +14,19 @@ module Overture
   , module Control.Monad.Trans.Class
   ) where
 
-import Linear (norm, normalize, (*^), (^*), quadrance)
-import Control.Lens hiding (without)
-import Types
-import BasePrelude hiding (group, rotate, lazy, index, uncons, loop, inRange)
-import Game.Sequoia hiding (form)
-import Game.Sequoia.Utils (showTrace)
-import Game.Sequoia.Window (MouseButton (..))
-import Data.Ecstasy hiding (get)
+import           BasePrelude hiding (group, rotate, lazy, index, uncons, loop, inRange)
+import           Control.Lens hiding (without)
+import           Control.Monad.State (runState)
+import           Control.Monad.State.Class (get, gets, put, modify)
+import           Control.Monad.Trans.Class (lift)
 import qualified Data.Ecstasy as E
-import Control.Monad.State.Class (get, gets, put, modify)
-import Control.Monad.State (runState)
-import Control.Monad.Trans.Class (lift)
+import           Data.Ecstasy hiding (get)
+import           Game.Sequoia hiding (form)
+import           Game.Sequoia.Utils (showTrace)
+import           Game.Sequoia.Window (MouseButton (..))
+import qualified QuadTree.QuadTree as QT
+import           Linear (norm, normalize, (*^), (^*), quadrance)
+import           Types
 
 
 canonicalizeV2 :: V2 -> V2 -> (V2, V2)
@@ -90,7 +91,7 @@ eover t f = do
   es <- t
   fmap catMaybes $ for es $ \e -> do
     cs <- getEntity e
-    mset <- lift $ unQueryT (f e) cs
+    mset <- lift $ unQueryT (f e) e cs
     case mset of
       Just (a, setter) -> do
         setEntity e setter
@@ -150,6 +151,14 @@ start :: Task () -> Game ()
 start t = lift . modify $ lsTasks %~ (t :)
 
 
+recvPos :: Query V2
+recvPos = do
+  e <- getEnt
+  dyn <- lift $ gets _lsDynamic
+  maybe empty pure $ QT.getLoc dyn e
+
+
+
 wait :: Time -> Task ()
 wait t | t <= 0 = pure ()
        | otherwise = do
@@ -166,34 +175,42 @@ waitUntil what = do
 
 
 getUnitsInRange :: V2 -> Double -> Game [(Ent, Double)]
-getUnitsInRange v2 rng =
-  efor $ \e -> do
-    Unit <- recv unitType
-    p <- recv pos
-    let x = quadrance $ p - v2
-    guard $ x <= rng * rng
-    pure (e, sqrt x)
+getUnitsInRange v2 rng = do
+  dyn <- lift $ gets _lsDynamic
+  let ents = QT.inRange dyn v2 rng
+  pure $ fmap (second $ norm . (v2-)) ents
 
 
 getUnitsInSquare :: V2 -> V2 -> Game [Ent]
 getUnitsInSquare p1 p2 = do
-  let (tl, br) = canonicalizeV2 p1 p2
-  efor $ \e -> do
-    p    <- recv pos
-    Unit <- recv unitType
-    guard $ liftV2 (<=) tl p && liftV2 (<) p br
-    pure e
+  let r = canonicalizeV2 p1 p2
+  dyn <- lift $ gets _lsDynamic
+  let ents = QT.inRect dyn r
+  pure $ fmap fst ents
+
+
+getPos :: Ent -> Game (Maybe V2)
+getPos e = do
+  dyn <- lift $ gets _lsDynamic
+  pure $ QT.getLoc dyn e
+
+
+setPos :: Ent -> V2 -> Game ()
+setPos e p = lift $ modify $ lsDynamic %~ \qt -> QT.move qt e p
+
+setPosQ :: V2 -> Query ()
+setPosQ p = do
+  e <- getEnt
+  lift $ modify $ lsDynamic %~ \qt -> QT.move qt e p
 
 
 getUnitAtPoint :: V2 -> Game (Maybe Ent)
-getUnitAtPoint p1 =
-  fmap listToMaybe . efor $ \e -> do
-    p    <- recv pos
-    rng  <- recv entSize
-    Unit <- recv unitType
-    let x = quadrance $ p1 - p
-    guard $ x <= rng * rng
-    pure e
+getUnitAtPoint p1 = do
+  -- TODO(sandy): yucky; don't work for big boys
+  us <- getUnitsInRange p1 10
+  pure . fmap fst
+       . listToMaybe
+       $ sortBy (comparing snd) us
 
 
 during :: Time -> (Double -> Task ()) -> Task ()

@@ -12,6 +12,7 @@ module Types
   , Key (..)
   ) where
 
+import QuadTree.QuadTree (QuadTree)
 import Control.Lens (makeLenses, makePrisms)
 import Control.Monad.Coroutine
 import Control.Monad.Coroutine.SuspensionFunctors
@@ -42,6 +43,7 @@ data LocalState = LocalState
   , _lsPlayer     :: Player
   , _lsTasks      :: [Task ()]
   , _lsTargetType :: Maybe (TargetType (Using Ability))
+  , _lsDynamic    :: QuadTree Ent Double
   }
 
 
@@ -114,8 +116,7 @@ type Flag f = Component f 'Field ()
 type Field f a = Component f 'Field a
 
 data EntWorld f = World
-  { pos      :: Field f V2
-  , gfx      :: Field f Form
+  { gfx      :: Field f Form
   , hp       :: Field f (Limit Int)
   , pathing  :: Field f Nav
   , speed    :: Field f Double

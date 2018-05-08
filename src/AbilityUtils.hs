@@ -9,9 +9,9 @@ import Overture hiding (init)
 explosion :: V2 -> Time -> (Double -> Form) -> Game ()
 explosion p dur draw = do
   me <- newEntity $ defEntity
-    { pos = Just p
-    , gfx = Just $ draw 0
+    { gfx = Just $ draw 0
     }
+  setPos me p
   start $ do
     during dur $ \delta ->
       lift $ setEntity me defEntity'
@@ -22,7 +22,7 @@ explosion p dur draw = do
 
 findTarget :: Target -> Game (Maybe V2)
 findTarget (TargetGround v2) = pure $ Just v2
-findTarget (TargetUnit e)    = fmap pos $ getEntity e
+findTarget (TargetUnit e)    = getPos e
 
 
 doDamage :: Maybe Double -> Int -> DamageHandler
@@ -52,19 +52,19 @@ performDamage dmg = do
 
 missile :: EntWorld 'FieldOf -> DamageHandler -> Ability
 missile proto fx attacker t = do
-  mpos0 <- lift $ fmap pos $ getEntity attacker
+  mpos0 <- lift $ getPos attacker
   mtpos <- lift $ findTarget t
   case (mpos0, mtpos) of
     (Just pos0, Just tpos) -> do
       ment <- lift $ newEntity proto
-        { pos     = Just pos0
-        , pathing = Just $ Goal tpos
+        { pathing = Just $ Goal tpos
         }
+      lift $ setPos ment pos0
       waitUntil $ do
         me <- getEntity ment
         pure . isNothing $ pathing me
       lift $ do
-        Just pos' <- fmap pos $ getEntity ment
+        Just pos' <- getPos ment
         fx pos' t
         setEntity ment delEntity
     _ -> pure ()

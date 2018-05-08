@@ -25,6 +25,10 @@ mkQuadTree (aw, ah) size =
   QuadTree mempty (listArray ((0, 0), (aw - 1, ah - 1)) $ repeat mempty) size
 
 
+getLoc :: Ord k => QuadTree k x -> k -> Maybe (V2 x)
+getLoc QuadTree{..} k = M.lookup k qtMap
+
+
 getStride :: RealFrac x => QuadTree k x -> (x, x)
 getStride QuadTree{..} =
   let (m, n) = snd $ bounds qtSpace
@@ -37,7 +41,7 @@ getStride QuadTree{..} =
 qtPoint :: RealFrac x => QuadTree k x -> V2 x -> (Int, Int)
 qtPoint qt (V2 x y) =
   let (sx, sy) = getStride qt
-   in (round $ x / sx, round $ y / sy)
+   in (floor $ x / sx, floor $ y / sy)
 
 
 remove :: (RealFrac x, Ord k) => QuadTree k x -> k -> QuadTree k x
@@ -103,9 +107,41 @@ rectCircleIntersect p rd rect@(tl@(V2 l t), br@(V2 r b)) =
     bl = V2 l b
 
 
-inRange :: (Ord k, RealFrac x) => QuadTree k x -> V2 x -> x -> [k]
+rectRectIntersect :: (Ord x, Num x) => (V2 x, V2 x) -> (V2 x, V2 x) -> Bool
+rectRectIntersect rect1@(tl1@(V2 l1 t1), br1@(V2 r1 b1))
+                  rect2@(tl2@(V2 l2 t2), br2@(V2 r2 b2)) =
+  or [ pointInRect tl2 rect1
+     , pointInRect tr2 rect1
+     , pointInRect bl2 rect1
+     , pointInRect br2 rect1
+     , pointInRect tl1 rect2
+     , pointInRect tr1 rect2
+     , pointInRect bl1 rect2
+     , pointInRect br1 rect2
+     ]
+  where
+    tr1 = V2 r1 t1
+    bl1 = V2 l1 b1
+    tr2 = V2 r2 t2
+    bl2 = V2 l2 b2
+
+
+inRange :: (Ord k, RealFrac x) => QuadTree k x -> V2 x -> x -> [(k, V2 x)]
 inRange qt@QuadTree{..} p rd =
   let allTiles  = fmap (\i -> (i, tile qt i)) $ indices qtSpace
       nearTiles = filter (rectCircleIntersect p rd . snd) allTiles
-   in S.toList $ foldMap ((qtSpace !) . fst) nearTiles
+   in filter (flip (pointInCircle p) rd . snd)
+    . mapMaybe (\a -> sequenceA (a, getLoc qt a))
+    . S.toList
+    $ foldMap ((qtSpace !) . fst) nearTiles
+
+
+inRect :: (Ord k, RealFrac x) => QuadTree k x -> (V2 x, V2 x) -> [(k, V2 x)]
+inRect qt@QuadTree{..} rect =
+  let allTiles  = fmap (\i -> (i, tile qt i)) $ indices qtSpace
+      nearTiles = filter (rectRectIntersect rect . snd) allTiles
+   in filter (flip pointInRect rect . snd)
+    . mapMaybe (\a -> sequenceA (a, getLoc qt a))
+    . S.toList
+    $ foldMap ((qtSpace !) . fst) nearTiles
 

@@ -3,6 +3,7 @@
 
 module Main where
 
+import QuadTree.QuadTree (mkQuadTree)
 import Control.FRPNow.Time (delayTime)
 import Game.Sequoia.Window (mousePos, mouseButtons)
 import Game.Sequoia.Keyboard
@@ -83,7 +84,7 @@ separateTask = forever $ do
       Unit <- recv unitType
       -- TODO(sandy): constant for def size
       (,,,) <$> pure e
-            <*> recv pos
+            <*> recvPos
             <*> recvDef 10 entSize
             <*> recvMaybe pathing
 
@@ -97,13 +98,13 @@ separateTask = forever $ do
       let dir = normalize $ p1 - p2
           s   = s1 + s2
       when (withinV2 p1 p2 s) $ do
+        setPos e1 $ p1 + dir ^* s1
         setEntity e1 defEntity'
-          { pos = Set $ p1 + dir ^* s1
-          , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p2 s2) g1
+          { pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p2 s2) g1
           }
+        setPos e2 $ p2 - dir ^* s2
         setEntity e2 defEntity'
-          { pos = Set $ p2 - dir ^* s2
-          , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p1 s1) g2
+          { pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p1 s1) g2
           }
 
 
@@ -142,9 +143,8 @@ initialize :: Game ()
 initialize = do
   for_ [0 .. 20] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
-    newEntity defEntity
-      { pos      = Just $ V2 (i * 30 + bool 0 400 mine) (i * 50)
-      , attack   = Just gunAttackData
+    e <- newEntity defEntity
+      { attack   = Just gunAttackData
       , entSize  = Just 10
       , speed    = Just 50
       , selected = bool Nothing (Just ()) mine
@@ -153,10 +153,10 @@ initialize = do
       , hp       = Just $ Limit 100 100
       , actions  = Just [attackAction, stopAction]
       }
+    setPos e $ V2 (i * 30 + bool 0 400 mine) (i * 50)
 
-  void $ newEntity defEntity
-    { pos      = Just $ V2 700 300
-    , attack   = Just gunAttackData
+  e <- newEntity defEntity
+    { attack   = Just gunAttackData
     , entSize  = Just 10
     , speed    = Just 100
     , selected = Just ()
@@ -165,13 +165,14 @@ initialize = do
     , hp       = Just $ Limit 100 100
     , actions  = Just [psiStormAction]
     }
+  setPos e $ V2 700 300
 
   start separateTask
 
 
 moveTowards :: Time -> V2 -> Query (Bool, V2)
 moveTowards dt g = do
-  p <- recv pos
+  p <- recvPos
   s <- recv speed
 
   let dir = g - p
@@ -183,10 +184,10 @@ moveTowards dt g = do
 
 updateAttacks :: Time -> Game ()
 updateAttacks dt = do
-  entPos <- fmap M.fromList . efor $ \e -> (,) <$> pure e <*> recv pos
+  entPos <- fmap M.fromList . efor $ \e -> (,) <$> pure e <*> recvPos
 
   tasks <- fmap catMaybes . eover allEnts $ \e ->  do
-    p <- recv pos
+    p <- recvPos
     a <- recv attack
     t <- recv target
     let cooldown'  = a ^. aCooldown.limVal - dt
@@ -233,9 +234,10 @@ update dt = do
             True  -> Keep
             False -> Unset
 
+
+    setPosQ p
     pure defEntity'
-      { pos     = Set p
-      , pathing = shouldStop
+      { pathing = shouldStop
       }
 
 
@@ -293,7 +295,7 @@ playerNotWaiting mouse kb = do
 
       -- TODO(sandy): can we use "getUnitsInSquare" instead?
       emap $ do
-        p    <- recv pos
+        p    <- recvPos
         o    <- recv owner
         Unit <- recv unitType
 
@@ -336,7 +338,7 @@ playerNotWaiting mouse kb = do
 draw :: Mouse -> Game [Form]
 draw mouse = do
   es <- efor $ const $ do
-    p  <- recv pos
+    p  <- recvPos
     z  <- recvFlag selected
     o  <- recvDef neutralPlayer owner
     ut <- recv unitType
@@ -350,7 +352,7 @@ draw mouse = do
       ]
 
   exs <- efor $ const $ do
-    p <- recv pos
+    p <- recvPos
     g <- recv gfx
     pure $ move p g
 
@@ -417,6 +419,7 @@ run = do
         , _lsPlayer     = mePlayer
         , _lsTasks      = []
         , _lsTargetType = Nothing
+        , _lsDynamic = mkQuadTree (16, 16) (V2 800 600)
         }
 
   let init = fst $ runGame (realState, (0, defWorld)) initialize
