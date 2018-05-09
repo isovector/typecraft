@@ -46,15 +46,15 @@ boolMonoid = flip (bool mempty)
 
 
 runGame
-    :: (LocalState, SystemState EntWorld)
+    :: (LocalState, SystemState EntWorld Underlying)
     -> SystemT EntWorld Underlying a
-    -> ((LocalState, SystemState EntWorld), a)
+    -> ((LocalState, SystemState EntWorld Underlying), a)
 runGame (gs, ss) m =
   let ((a, b), c) = flip runState gs $ yieldSystemT ss m
    in ((c, a), b)
 
 evalGame
-    :: (LocalState, SystemState EntWorld)
+    :: (LocalState, SystemState EntWorld Underlying)
     -> SystemT EntWorld Underlying a
     -> a
 evalGame = (snd .) . runGame
@@ -89,15 +89,19 @@ pumpTasks dt = do
 
 
 start :: Task () -> Game ()
-
 start t = modify $ lsTasks %~ (t :)
 
 
-queryPos :: Query V2
-queryPos = do
-  e <- queryEnt
+vgetPos :: Ent -> Underlying (Maybe V2)
+vgetPos e = do
   dyn <- gets _lsDynamic
-  maybe empty pure $ QT.getLoc dyn e
+  pure $ QT.getLoc dyn e
+
+
+vsetPos :: Ent -> Update V2 -> Underlying ()
+vsetPos e (Set p) = modify $ lsDynamic %~ \qt -> QT.move qt e p
+vsetPos e Unset = modify $ lsDynamic %~ \qt -> QT.remove qt e
+vsetPos _ Keep = pure ()
 
 
 
@@ -135,20 +139,6 @@ getUnitsInSquare p1 p2 = do
   let ents = QT.inRect dyn r
   pure $ fmap fst ents
 
-
-getPos :: Ent -> Game (Maybe V2)
-getPos e = do
-  dyn <- gets _lsDynamic
-  pure $ QT.getLoc dyn e
-
-
-setPos :: Ent -> V2 -> Game ()
-setPos e p = modify $ lsDynamic %~ \qt -> QT.move qt e p
-
-setPosQ :: V2 -> Query ()
-setPosQ p = do
-  e <- queryEnt
-  modify $ lsDynamic %~ \qt -> QT.move qt e p
 
 
 getUnitAtPoint :: V2 -> Game (Maybe Ent)

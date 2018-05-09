@@ -101,13 +101,13 @@ separateTask = do
             dir = normalize $ p1 - p2
             s   = s1 + s2
         lift . when (withinV2 p1 p2 s) $ do
-          setPos e1 $ p1 + dir ^* s1
           setEntity e1 defEntity'
-            { pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p2 s2) g1
+            { pos = Set $ p1 + dir ^* s1
+            , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p2 s2) g1
             }
-          setPos e2 $ p2 - dir ^* s2
           setEntity e2 defEntity'
-            { pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p1 s1) g2
+            { pos = Set $ p2 - dir ^* s2
+            , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p1 s1) g2
             }
 
 
@@ -147,8 +147,9 @@ initialize :: Game ()
 initialize = do
   for_ [0 .. 200] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
-    e <- newEntity defEntity
-      { attack   = Just gunAttackData
+    newEntity defEntity
+      { pos      = Just $ V2 (i * 10 + bool 0 400 mine) (i * 10)
+      , attack   = Just gunAttackData
       , entSize  = Just 10
       , speed    = Just 150
       , selected = bool Nothing (Just ()) mine
@@ -157,10 +158,10 @@ initialize = do
       , hp       = Just $ Limit 100 100
       , actions  = Just [attackAction, stopAction]
       }
-    setPos e $ V2 (i * 10 + bool 0 400 mine) (i * 10)
 
-  e <- newEntity defEntity
-    { attack   = Just gunAttackData
+  void $ newEntity defEntity
+    { pos      = Just $ V2 700 300
+    , attack   = Just gunAttackData
     , entSize  = Just 10
     , speed    = Just 100
     , selected = Just ()
@@ -169,14 +170,13 @@ initialize = do
     , hp       = Just $ Limit 100 100
     , actions  = Just [psiStormAction]
     }
-  setPos e $ V2 700 300
 
   start separateTask
 
 
 moveTowards :: Time -> V2 -> Query (Bool, V2)
 moveTowards dt g = do
-  p <- queryPos
+  p <- query pos
   s <- query speed
 
   let dir = g - p
@@ -188,11 +188,11 @@ moveTowards dt g = do
 
 updateAttacks :: Time -> Game ()
 updateAttacks dt = do
-  entPos <- fmap M.fromList . efor allEnts $ (,) <$> queryEnt <*> queryPos
+  entPos <- fmap M.fromList . efor allEnts $ (,) <$> queryEnt <*> query pos
 
   tasks <- fmap catMaybes . eover allEnts $ do
     e <- queryEnt
-    p <- queryPos
+    p <- query pos
     a <- query attack
     t <- query target
     let cooldown'  = a ^. aCooldown.limVal - dt
@@ -240,9 +240,9 @@ update dt = do
             False -> Unset
 
 
-    setPosQ p
     pure defEntity'
-      { pathing = shouldStop
+      { pos = Set p
+      , pathing = shouldStop
       }
 
 
@@ -300,7 +300,7 @@ playerNotWaiting mouse kb = do
 
       -- TODO(sandy): can we use "getUnitsInSquare" instead?
       emap allEnts $ do
-        p    <- queryPos
+        p    <- query pos
         o    <- query owner
         Unit <- query unitType
 
@@ -343,7 +343,7 @@ playerNotWaiting mouse kb = do
 draw :: Mouse -> Game [Form]
 draw mouse = do
   es <- efor allEnts $ do
-    p  <- queryPos
+    p  <- query pos
     z  <- queryFlag selected
     o  <- queryDef neutralPlayer owner
     ut <- query unitType
@@ -357,7 +357,7 @@ draw mouse = do
       ]
 
   exs <- efor allEnts $ do
-    p <- queryPos
+    p <- query pos
     g <- query gfx
     pure $ move p g
 
@@ -427,7 +427,10 @@ run = do
         , _lsDynamic = mkQuadTree (8, 8) (V2 800 600)
         }
 
-  let init = fst $ runGame (realState, (0, defWorld)) initialize
+  let world = defWorld
+              { pos = VTable vgetPos vsetPos
+              }
+      init = fst $ runGame (realState, (0, world)) initialize
 
   (game, _) <- foldmp init $ \state -> do
     -- arrs  <- sample $ arrows keyboard

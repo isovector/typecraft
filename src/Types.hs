@@ -117,7 +117,8 @@ type Flag f = Component f 'Field ()
 type Field f a = Component f 'Field a
 
 data EntWorld f = World
-  { gfx      :: !(Field f Form)
+  { pos      :: !(Component f 'Virtual V2)
+  , gfx      :: !(Field f Form)
   , hp       :: !(Field f (Limit Int))
   , pathing  :: !(Field f Nav)
   , speed    :: !(Field f Double)
@@ -132,7 +133,7 @@ data EntWorld f = World
   deriving (Generic)
 
 
-type World = EntWorld 'WorldOf
+type World = EntWorld ('WorldOf Underlying)
 
 
 makeLenses ''LocalState
