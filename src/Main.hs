@@ -4,6 +4,7 @@
 module Main where
 
 import QuadTree.QuadTree (mkQuadTree)
+import qualified QuadTree.QuadTree as QT
 import Control.FRPNow.Time (delayTime)
 import Game.Sequoia.Window (mousePos, mouseButtons)
 import Game.Sequoia.Keyboard
@@ -75,37 +76,41 @@ stopAction = Action
 
 
 separateTask :: Task ()
-separateTask = forever $ do
-  let howOften = 0.1
-  wait howOften
+separateTask = do
+  dyn0 <- lift . lift $ gets _lsDynamic
+  let zones = QT.zones dyn0
+      howMany = 10 :: Int
 
-  lift $ do
-    entPos <- efor $ \e -> do
-      Unit <- recv unitType
-      -- TODO(sandy): constant for def size
-      (,,,) <$> pure e
-            <*> recvPos
-            <*> recvDef 10 entSize
-            <*> recvMaybe pathing
-
+  forever $ for_ (zip zones $ join $ repeat [0..howMany]) $ \(zone, i) -> do
+    when (i == 0) $ void await
+    ents <- lift $ getUnitsInZone zone
     let pairwise = do
-          a@(e1, _, _, _) <- entPos
-          b@(e2, _, _, _) <- entPos
-          guard $ e1 < e2
-          pure (a, b)
+          e1 <- ents
+          e2 <- ents
+          guard $ fst e1 < fst e2
+          pure (e1, e2)
+    for_ pairwise $ \((e1, p1), (e2, p2)) -> do
+      zs <- lift . eover (someEnts [e1, e2]) $ do
+        Unit <- query unitType
+        -- TODO(sandy): constant for def size
+        x <- (,) <$> queryDef 10 entSize
+                 <*> queryMaybe pathing
+        pure (x, defEntity')
+      when (length zs == 2) $ do
+        let [(s1, g1), (s2, g2)] = zs
+            dir = normalize $ p1 - p2
+            s   = s1 + s2
+        lift . when (withinV2 p1 p2 s) $ do
+          setPos e1 $ p1 + dir ^* s1
+          setEntity e1 defEntity'
+            { pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p2 s2) g1
+            }
+          setPos e2 $ p2 - dir ^* s2
+          setEntity e2 defEntity'
+            { pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p1 s1) g2
+            }
 
-    for_ pairwise $ \((e1, p1, s1, g1), (e2, p2, s2, g2)) -> do
-      let dir = normalize $ p1 - p2
-          s   = s1 + s2
-      when (withinV2 p1 p2 s) $ do
-        setPos e1 $ p1 + dir ^* s1
-        setEntity e1 defEntity'
-          { pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p2 s2) g1
-          }
-        setPos e2 $ p2 - dir ^* s2
-        setEntity e2 defEntity'
-          { pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p1 s1) g2
-          }
+
 
 
 psiStorm :: Ability
@@ -133,7 +138,6 @@ psiStorm _ (TargetGround v2) = do
         $ filled (rgb 0 0.8 1) form
       inRange <- getUnitsInSquare p1 p2
       eover (someEnts inRange)
-        . const
         . fmap ((),)
         $ performDamage dmg
 
@@ -141,19 +145,19 @@ psiStorm _ (TargetGround v2) = do
 
 initialize :: Game ()
 initialize = do
-  for_ [0 .. 20] $ \i -> do
+  for_ [0 .. 200] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
     e <- newEntity defEntity
       { attack   = Just gunAttackData
       , entSize  = Just 10
-      , speed    = Just 50
+      , speed    = Just 150
       , selected = bool Nothing (Just ()) mine
       , owner    = Just $ bool neutralPlayer mePlayer mine
       , unitType = Just Unit
       , hp       = Just $ Limit 100 100
       , actions  = Just [attackAction, stopAction]
       }
-    setPos e $ V2 (i * 30 + bool 0 400 mine) (i * 50)
+    setPos e $ V2 (i * 10 + bool 0 400 mine) (i * 10)
 
   e <- newEntity defEntity
     { attack   = Just gunAttackData
@@ -172,8 +176,8 @@ initialize = do
 
 moveTowards :: Time -> V2 -> Query (Bool, V2)
 moveTowards dt g = do
-  p <- recvPos
-  s <- recv speed
+  p <- queryPos
+  s <- query speed
 
   let dir = g - p
       dist = norm dir
@@ -184,12 +188,13 @@ moveTowards dt g = do
 
 updateAttacks :: Time -> Game ()
 updateAttacks dt = do
-  entPos <- fmap M.fromList . efor $ \e -> (,) <$> pure e <*> recvPos
+  entPos <- fmap M.fromList . efor allEnts $ (,) <$> queryEnt <*> queryPos
 
-  tasks <- fmap catMaybes . eover allEnts $ \e ->  do
-    p <- recvPos
-    a <- recv attack
-    t <- recv target
+  tasks <- fmap catMaybes . eover allEnts $ do
+    e <- queryEnt
+    p <- queryPos
+    a <- query attack
+    t <- query target
     let cooldown'  = a ^. aCooldown.limVal - dt
         refresh    = cooldown' < 0
         tpos       = case t of
@@ -216,17 +221,17 @@ update dt = do
   updateAttacks dt
 
   -- death to infidels
-  emap $ do
-    Unit <- recv unitType
-    Limit health _ <- recv hp
+  emap allEnts $ do
+    Unit <- query unitType
+    Limit health _ <- query hp
 
     pure $ if health <= 0
               then delEntity
               else defEntity'
 
   -- do walking
-  emap $ do
-    Goal g <- recv pathing
+  emap allEnts $ do
+    Goal g <- query pathing
     (notThereYet, p) <- moveTowards dt g
 
     let shouldStop =
@@ -294,10 +299,10 @@ playerNotWaiting mouse kb = do
           (tl, br) = canonicalizeV2 p1 p2
 
       -- TODO(sandy): can we use "getUnitsInSquare" instead?
-      emap $ do
-        p    <- recvPos
-        o    <- recv owner
-        Unit <- recv unitType
+      emap allEnts $ do
+        p    <- queryPos
+        o    <- query owner
+        Unit <- query unitType
 
         guard $ o == lPlayer
         pure defEntity'
@@ -308,16 +313,16 @@ playerNotWaiting mouse kb = do
           }
 
   when (mPress mouse buttonRight) $ do
-    emap $ do
+    emap allEnts $ do
       with selected
       pure defEntity'
         { pathing = Set $ Goal $ mPos mouse
         }
 
-  allSel <- efor $ \e -> do
+  allSel <- efor allEnts $ do
     with selected
-    (,) <$> pure e
-        <*> recv actions
+    (,) <$> queryEnt
+        <*> query actions
 
   z <- for (listToMaybe allSel) $ \(sel, acts) -> do
     for acts $ \act -> do
@@ -337,12 +342,12 @@ playerNotWaiting mouse kb = do
 
 draw :: Mouse -> Game [Form]
 draw mouse = do
-  es <- efor $ const $ do
-    p  <- recvPos
-    z  <- recvFlag selected
-    o  <- recvDef neutralPlayer owner
-    ut <- recv unitType
-    sz <- recvDef 10 entSize
+  es <- efor allEnts $ do
+    p  <- queryPos
+    z  <- queryFlag selected
+    o  <- queryDef neutralPlayer owner
+    ut <- query unitType
+    sz <- queryDef 10 entSize
 
     pure $ move p $ group
       [ boolMonoid z $ traced' (rgb 0 1 0) $ circle $ sz + 5
@@ -351,9 +356,9 @@ draw mouse = do
           Missile -> filled (rgb 0.7 0.7 0.7) $ circle 2
       ]
 
-  exs <- efor $ const $ do
-    p <- recvPos
-    g <- recv gfx
+  exs <- efor allEnts $ do
+    p <- queryPos
+    g <- query gfx
     pure $ move p g
 
   -- draw hud
@@ -419,7 +424,7 @@ run = do
         , _lsPlayer     = mePlayer
         , _lsTasks      = []
         , _lsTargetType = Nothing
-        , _lsDynamic = mkQuadTree (16, 16) (V2 800 600)
+        , _lsDynamic = mkQuadTree (8, 8) (V2 800 600)
         }
 
   let init = fst $ runGame (realState, (0, defWorld)) initialize

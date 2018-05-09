@@ -19,8 +19,7 @@ import           Control.Lens hiding (without)
 import           Control.Monad.State (runState)
 import           Control.Monad.State.Class (get, gets, put, modify)
 import           Control.Monad.Trans.Class (lift)
-import qualified Data.Ecstasy as E
-import           Data.Ecstasy hiding (get)
+import           Data.Ecstasy
 import           Game.Sequoia hiding (form)
 import           Game.Sequoia.Utils (showTrace)
 import           Game.Sequoia.Window (MouseButton (..))
@@ -42,66 +41,8 @@ liftV2 f (V2 x y) (V2 x' y') = f x x' && f y y'
 liftV2 _ _ _ = error "impossible"
 
 
-recv :: (EntWorld 'FieldOf -> Maybe a) -> Query a
-recv = E.get
-
-recvMaybe :: (EntWorld 'FieldOf -> Maybe a) -> Query (Maybe a)
-recvMaybe = E.getMaybe
-
-
 boolMonoid :: Monoid m => Bool -> m -> m
 boolMonoid = flip (bool mempty)
-
-
-recvFlag
-    :: (EntWorld 'FieldOf -> Maybe ())
-    -> Query Bool
-recvFlag = fmap (maybe False (const True)) . getMaybe
-
-
-recvDef
-    :: z
-    -> (EntWorld 'FieldOf -> Maybe z)
-    -> Query z
-recvDef z = fmap (maybe z id) . getMaybe
-
-type EntTarget world m = SystemT world m [Ent]
-
-
-allEnts :: Monad m => EntTarget world m
-allEnts = do
-  (es, _) <- get
-  pure $ Ent <$> [0 .. es - 1]
-
-someEnts :: Monad m => [Ent] -> EntTarget world m
-someEnts = pure
-
-anEnt :: Monad m => Ent -> EntTarget world m
-anEnt = pure . pure
-
-
-eover
-    :: ( HasWorld world
-       , Monad m
-       )
-    => EntTarget world m
-    -> (Ent -> QueryT world m (a, world 'SetterOf))
-    -> SystemT world m [a]
-eover t f = do
-  es <- t
-  fmap catMaybes $ for es $ \e -> do
-    cs <- getEntity e
-    mset <- lift $ unQueryT (f e) e cs
-    case mset of
-      Just (a, setter) -> do
-        setEntity e setter
-        pure $ Just a
-      Nothing ->  pure Nothing
-
-
-maybeToUpdate :: Maybe a -> Update a
-maybeToUpdate Nothing  = Unset
-maybeToUpdate (Just a) = Set a
 
 
 runGame
@@ -137,24 +78,25 @@ toV2 = uncurry V2 . (fi *** fi)
 
 pumpTasks :: Time -> Game ()
 pumpTasks dt = do
-  tasks  <- lift $ gets _lsTasks
-  lift . modify $ lsTasks .~ []
+  tasks  <- gets _lsTasks
+  modify $ lsTasks .~ []
   tasks' <- fmap catMaybes . for tasks $ \task -> do
     z <- resume task
     pure $ case z of
       Left (Await f) -> Just $ f dt
       Right _        -> Nothing
-  lift . modify $ lsTasks <>~ tasks'
+  modify $ lsTasks <>~ tasks'
 
 
 start :: Task () -> Game ()
-start t = lift . modify $ lsTasks %~ (t :)
+
+start t = modify $ lsTasks %~ (t :)
 
 
-recvPos :: Query V2
-recvPos = do
-  e <- getEnt
-  dyn <- lift $ gets _lsDynamic
+queryPos :: Query V2
+queryPos = do
+  e <- queryEnt
+  dyn <- gets _lsDynamic
   maybe empty pure $ QT.getLoc dyn e
 
 
@@ -174,9 +116,14 @@ waitUntil what = do
     unless finished f
 
 
+getUnitsInZone :: (Int, Int) -> Game [(Ent, V2)]
+getUnitsInZone zone = do
+  dyn <- gets _lsDynamic
+  pure $ QT.inZone dyn zone
+
 getUnitsInRange :: V2 -> Double -> Game [(Ent, Double)]
 getUnitsInRange v2 rng = do
-  dyn <- lift $ gets _lsDynamic
+  dyn <- gets _lsDynamic
   let ents = QT.inRange dyn v2 rng
   pure $ fmap (second $ norm . (v2-)) ents
 
@@ -184,24 +131,24 @@ getUnitsInRange v2 rng = do
 getUnitsInSquare :: V2 -> V2 -> Game [Ent]
 getUnitsInSquare p1 p2 = do
   let r = canonicalizeV2 p1 p2
-  dyn <- lift $ gets _lsDynamic
+  dyn <- gets _lsDynamic
   let ents = QT.inRect dyn r
   pure $ fmap fst ents
 
 
 getPos :: Ent -> Game (Maybe V2)
 getPos e = do
-  dyn <- lift $ gets _lsDynamic
+  dyn <- gets _lsDynamic
   pure $ QT.getLoc dyn e
 
 
 setPos :: Ent -> V2 -> Game ()
-setPos e p = lift $ modify $ lsDynamic %~ \qt -> QT.move qt e p
+setPos e p = modify $ lsDynamic %~ \qt -> QT.move qt e p
 
 setPosQ :: V2 -> Query ()
 setPosQ p = do
-  e <- getEnt
-  lift $ modify $ lsDynamic %~ \qt -> QT.move qt e p
+  e <- queryEnt
+  modify $ lsDynamic %~ \qt -> QT.move qt e p
 
 
 getUnitAtPoint :: V2 -> Game (Maybe Ent)

@@ -29,14 +29,12 @@ doDamage :: Maybe Double -> Int -> DamageHandler
 doDamage splash dmg v2 (TargetUnit e) = do
   if splash == Nothing
      then void . eover (anEnt e)
-               . const
                . fmap ((),)
                $ performDamage dmg
      else doDamage splash dmg v2 $ TargetGround v2
 doDamage (Just splash) dmg v2 (TargetGround {}) = do
   units <- fmap fst <$> getUnitsInRange v2 splash
   void . eover (someEnts units)
-       . const
        . fmap ((),)
        $ performDamage dmg
 doDamage Nothing _ _ (TargetGround {}) = pure ()
@@ -44,7 +42,7 @@ doDamage Nothing _ _ (TargetGround {}) = pure ()
 
 performDamage :: Int -> Query (EntWorld 'SetterOf)
 performDamage dmg = do
-  health <- recv hp
+  health <- query hp
   pure defEntity'
     { hp = Set $ health & limVal -~ dmg
     }

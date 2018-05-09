@@ -4,8 +4,8 @@ module QuadTree.QuadTree where
 
 import           BasePrelude hiding (insert)
 import           Control.Lens (ix, (%~))
-import           Data.Array
-import           Data.Map (Map)
+import           Data.Array.Unboxed
+import           Data.Map.Strict (Map)
 import qualified Data.Map as M
 import           Data.Set (Set)
 import qualified Data.Set as S
@@ -14,9 +14,9 @@ import           Linear (quadrance)
 
 
 data QuadTree k x = QuadTree
-  { qtMap   :: Map k (V2 x)
-  , qtSpace :: Array (Int, Int) (Set k)
-  , qtSize  :: V2 x
+  { qtMap   :: {-# UNPACK #-} !(Map k (V2 x))
+  , qtSpace :: {-# UNPACK #-} !(Array (Int, Int) (Set k))
+  , qtSize  :: {-# UNPACK #-} !(V2 x)
   }
 
 
@@ -79,6 +79,15 @@ tile qt (x, y) =
       , V2 (sx * (x' + 1))
            (sy * (y' + 1))
       )
+
+
+zones :: QuadTree k x -> [(Int, Int)]
+zones = indices . qtSpace
+
+
+inZone :: (Ord k, RealFrac x) => QuadTree k x -> (Int, Int) -> [(k, V2 x)]
+inZone qt@QuadTree{..} i =
+  mapMaybe (\a -> sequenceA (a, getLoc qt a)) . S.toList $ qtSpace ! i
 
 
 pointInRect :: Ord x => V2 x -> (V2 x, V2 x) -> Bool

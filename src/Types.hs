@@ -1,8 +1,9 @@
-{-# LANGUAGE DeriveAnyClass     #-}
-{-# LANGUAGE DeriveFunctor      #-}
-{-# LANGUAGE DeriveGeneric      #-}
-{-# LANGUAGE StandaloneDeriving #-}
-{-# LANGUAGE TemplateHaskell    #-}
+{-# LANGUAGE DeriveAnyClass           #-}
+{-# LANGUAGE DeriveFunctor            #-}
+{-# LANGUAGE DeriveGeneric            #-}
+{-# LANGUAGE StandaloneDeriving       #-}
+{-# LANGUAGE TemplateHaskell          #-}
+{-# OPTIONS_GHC -funbox-strict-fields #-}
 
 module Types
   ( module Types
@@ -24,40 +25,40 @@ import Game.Sequoia.Window (MouseButton (..))
 
 
 data Mouse = Mouse
-  { mDown    :: MouseButton -> Bool
-  , mUp      :: MouseButton -> Bool
-  , mPress   :: MouseButton -> Bool
-  , mUnpress :: MouseButton -> Bool
-  , mPos     :: V2
+  { mDown    :: !(MouseButton -> Bool)
+  , mUp      :: !(MouseButton -> Bool)
+  , mPress   :: !(MouseButton -> Bool)
+  , mUnpress :: !(MouseButton -> Bool)
+  , mPos     :: !V2
   }
 
 data Keyboard = Keyboard
-  { kPress   :: Key -> Bool
-  , kUnpress :: Key -> Bool
-  , kPresses :: [Key]
+  { kPress   :: !(Key -> Bool)
+  , kUnpress :: !(Key -> Bool)
+  , kPresses :: ![Key]
   }
 
 
 data LocalState = LocalState
-  { _lsSelBox     :: Maybe V2
-  , _lsPlayer     :: Player
-  , _lsTasks      :: [Task ()]
-  , _lsTargetType :: Maybe (TargetType (Using Ability))
-  , _lsDynamic    :: QuadTree Ent Double
+  { _lsSelBox     :: !(Maybe V2)
+  , _lsPlayer     :: !Player
+  , _lsTasks      :: ![Task ()]
+  , _lsTargetType :: !(Maybe (TargetType (Using Ability)))
+  , _lsDynamic    :: !(QuadTree Ent Double)
   }
 
 
 data Limit a = Limit
-  { _limVal :: a
-  , _limMax :: a
+  { _limVal :: !a
+  , _limMax :: !a
   }
   deriving (Eq, Ord, Show)
 
 
 data Attack = Attack
-  { _aCooldown  :: Limit Time
-  , _aRange     :: Double
-  , _aTask      :: Ent -> Target -> Task ()
+  { _aCooldown  :: !(Limit Time)
+  , _aRange     :: !Double
+  , _aTask      :: !(Ent -> Target -> Task ())
   }
 
 type Underlying = State LocalState
@@ -74,27 +75,27 @@ type DamageHandler = V2 -> Target -> Game ()
 
 
 data Action = Action
-  { _acName   :: String
-  , _acHotkey :: Maybe Key
-  , _acTType  :: TargetType ()
-  , _acTask   :: Ability
+  { _acName   :: !String
+  , _acHotkey :: !(Maybe Key)
+  , _acTType  :: !(TargetType ())
+  , _acTask   :: !Ability
   }
 
 
 data Nav
-  = Goal V2
+  = Goal !V2
 
 
 data TargetType a
-  = TargetTypeUnit    { unTargetType :: a }
-  | TargetTypeGround  { unTargetType :: a }
-  | TargetTypeInstant { unTargetType :: a }
+  = TargetTypeUnit    { unTargetType :: !a }
+  | TargetTypeGround  { unTargetType :: !a }
+  | TargetTypeInstant { unTargetType :: !a }
   deriving (Functor)
 
 
 data Using a = Using
-  { _usingEnt  :: Ent
-  , _usingWhat :: a
+  { _usingEnt  :: !Ent
+  , _usingWhat :: !a
   }
   deriving (Functor)
 
@@ -107,7 +108,7 @@ data UnitType
   | Missile
 
 data Player = Player
-  { pColor :: Color
+  { pColor :: !Color
   }
   deriving (Eq)
 
@@ -116,17 +117,17 @@ type Flag f = Component f 'Field ()
 type Field f a = Component f 'Field a
 
 data EntWorld f = World
-  { gfx      :: Field f Form
-  , hp       :: Field f (Limit Int)
-  , pathing  :: Field f Nav
-  , speed    :: Field f Double
-  , entSize  :: Field f Double
-  , selected :: Flag f
-  , unitType :: Field f UnitType
-  , owner    :: Field f Player
-  , attack   :: Field f Attack
-  , target   :: Field f Target
-  , actions  :: Field f [Action]
+  { gfx      :: !(Field f Form)
+  , hp       :: !(Field f (Limit Int))
+  , pathing  :: !(Field f Nav)
+  , speed    :: !(Field f Double)
+  , entSize  :: !(Field f Double)
+  , selected :: !(Flag f)
+  , unitType :: !(Field f UnitType)
+  , owner    :: !(Field f Player)
+  , attack   :: !(Field f Attack)
+  , target   :: !(Field f Target)
+  , actions  :: !(Field f [Action])
   }
   deriving (Generic)
 
