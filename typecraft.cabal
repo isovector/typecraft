@@ -33,6 +33,7 @@ executable typecraft
                , array
                , ecstasy
                , frpnow
+               , htiled
                , lens
                , linear
                , monad-coroutine

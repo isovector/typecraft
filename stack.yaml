@@ -2,6 +2,7 @@ flags: {}
 packages:
   - '.'
   - '../ecstasy'
+  - '../sequoia'
   - extra-dep: true
     location:
       git: https://github.com/isovector/htiled.git
@@ -14,10 +15,6 @@ packages:
     location:
       git: https://github.com/isovector/QuadTree.git
       commit: 4f2993f3ae31d45216b06c6cbc9ea8da3f8bcf09
-  - extra-dep: true
-    location:
-      git: https://github.com/isovector/sequoia.git
-      commit: 605f5124cc31e31a6f7a6ef68f4636d10d267b10
 
 extra-deps:
   - sdl2-2.3.0

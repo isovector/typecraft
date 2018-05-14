@@ -23,6 +23,11 @@ import Game.Sequoia
 import Game.Sequoia.Keyboard
 import Game.Sequoia.Window (MouseButton (..))
 
+data Map = Map
+  { mapGeometry :: Int -> Int -> Maybe Form
+  , mapDoodads  :: Int -> Int -> Maybe Form
+  }
+
 
 data Mouse = Mouse
   { mDown    :: !(MouseButton -> Bool)

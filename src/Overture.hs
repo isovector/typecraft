@@ -23,8 +23,8 @@ import           Data.Ecstasy
 import           Game.Sequoia hiding (form)
 import           Game.Sequoia.Utils (showTrace)
 import           Game.Sequoia.Window (MouseButton (..))
+import           Linear (norm, normalize, (*^), (^*), quadrance, M22)
 import qualified QuadTree.QuadTree as QT
-import           Linear (norm, normalize, (*^), (^*), quadrance)
 import           Types
 
 
@@ -33,12 +33,10 @@ canonicalizeV2 v1@(V2 x y) v2@(V2 x' y')
     | liftV2 (<=) v1 v2 = (v1, v2)
     | liftV2 (<=) v2 v1 = (v2, v1)
     | otherwise = canonicalizeV2 (V2 x y') (V2 x' y)
-canonicalizeV2 _ _ = error "impossible"
 
 
 liftV2 :: (Double -> Double -> Bool) -> V2 -> V2 -> Bool
 liftV2 f (V2 x y) (V2 x' y') = f x x' && f y y'
-liftV2 _ _ _ = error "impossible"
 
 
 boolMonoid :: Monoid m => Bool -> m -> m
@@ -164,4 +162,22 @@ withinV2 p1 p2 d =
   let qd = quadrance $ p1 - p2
       d1 = d * d
    in qd <= d1
+
+
+tileScreen :: Iso' (Int, Int) V2
+tileScreen = iso toScreen undefined
+  where
+    tileWidth = 64
+    tileHeight = 32
+    toScreen (x, y) =
+      let shifted = y `mod` 2 == 1
+       in V2 ( fromIntegral x * tileWidth
+             + bool 0 (tileWidth / 2) shifted
+             )
+             ( fromIntegral y * tileHeight / 2
+             )
+    toWorld = undefined
+
+-- projection :: M22 Double
+-- projection = V2 (V2 0 0) (V2 0 0)
 

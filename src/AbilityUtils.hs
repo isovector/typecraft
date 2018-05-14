@@ -8,13 +8,13 @@ import Overture hiding (init)
 
 explosion :: V2 -> Time -> (Double -> Form) -> Game ()
 explosion p dur draw = do
-  me <- newEntity $ defEntity
+  me <- createEntity $ newEntity
     { pos = Just p
     , gfx = Just $ draw 0
     }
   start $ do
     during dur $ \delta ->
-      lift $ setEntity me defEntity'
+      lift $ setEntity me unchanged
         { gfx = Set $ draw delta
         }
     lift $ setEntity me delEntity
@@ -43,7 +43,7 @@ doDamage Nothing _ _ (TargetGround {}) = pure ()
 performDamage :: Int -> Query (EntWorld 'SetterOf)
 performDamage dmg = do
   health <- query hp
-  pure defEntity'
+  pure unchanged
     { hp = Set $ health & limVal -~ dmg
     }
 
@@ -54,7 +54,7 @@ missile proto fx attacker t = do
   mtpos <- lift $ findTarget t
   case (mpos0, mtpos) of
     (Just pos0, Just tpos) -> do
-      ment <- lift $ newEntity proto
+      ment <- lift $ createEntity proto
         { pos = Just pos0
         , pathing = Just $ Goal tpos
         }
@@ -69,7 +69,7 @@ missile proto fx attacker t = do
 
 
 missileEnt :: Double -> Proto
-missileEnt sp = defEntity
+missileEnt sp = newEntity
   { unitType = Just Missile
   , speed    = Just sp
   }

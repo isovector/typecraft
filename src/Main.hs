@@ -3,15 +3,16 @@
 
 module Main where
 
-import QuadTree.QuadTree (mkQuadTree)
-import qualified QuadTree.QuadTree as QT
-import Control.FRPNow.Time (delayTime)
-import Game.Sequoia.Window (mousePos, mouseButtons)
-import Game.Sequoia.Keyboard
-import Overture hiding (init)
-import AbilityUtils
+import           AbilityUtils
+import           Control.FRPNow.Time (delayTime)
 import qualified Data.Map as M
 import qualified Data.Set as S
+import           Game.Sequoia.Keyboard
+import           Game.Sequoia.Window (mousePos, mouseButtons)
+import           Map
+import           Overture hiding (init)
+import           QuadTree.QuadTree (mkQuadTree)
+import qualified QuadTree.QuadTree as QT
 
 
 gameWidth :: Num t => t
@@ -58,7 +59,7 @@ attackAction = Action
   { _acName   = "Attack"
   , _acHotkey = Just AKey
   , _acTType  = TargetTypeUnit ()
-  , _acTask   = \e t -> lift $ setEntity e defEntity' { target = Set t }
+  , _acTask   = \e t -> lift $ setEntity e unchanged { target = Set t }
   }
 
 
@@ -68,7 +69,7 @@ stopAction = Action
   , _acHotkey = Just SKey
   , _acTType  = TargetTypeInstant ()
   , _acTask   = \e _ ->
-      lift $ setEntity e defEntity'
+      lift $ setEntity e unchanged
         { target  = Unset
         , pathing = Unset
         }
@@ -95,17 +96,17 @@ separateTask = do
         -- TODO(sandy): constant for def size
         x <- (,) <$> queryDef 10 entSize
                  <*> queryMaybe pathing
-        pure (x, defEntity')
+        pure (x, unchanged)
       when (length zs == 2) $ do
         let [(s1, g1), (s2, g2)] = zs
             dir = normalize $ p1 - p2
             s   = s1 + s2
         lift . when (withinV2 p1 p2 s) $ do
-          setEntity e1 defEntity'
+          setEntity e1 unchanged
             { pos = Set $ p1 + dir ^* s1
             , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p2 s2) g1
             }
-          setEntity e2 defEntity'
+          setEntity e2 unchanged
             { pos = Set $ p2 - dir ^* s2
             , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p1 s1) g2
             }
@@ -145,9 +146,9 @@ psiStorm _ (TargetGround v2) = do
 
 initialize :: Game ()
 initialize = do
-  for_ [0 .. 200] $ \i -> do
+  for_ [0 .. 20] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
-    newEntity defEntity
+    createEntity newEntity
       { pos      = Just $ V2 (i * 10 + bool 0 400 mine) (i * 10)
       , attack   = Just gunAttackData
       , entSize  = Just 10
@@ -159,7 +160,7 @@ initialize = do
       , actions  = Just [attackAction, stopAction]
       }
 
-  void $ newEntity defEntity
+  void $ createEntity newEntity
     { pos      = Just $ V2 700 300
     , attack   = Just gunAttackData
     , entSize  = Just 10
@@ -207,7 +208,7 @@ updateAttacks dt = do
         cooldown'' = bool cooldown' (a ^. aCooldown.limMax) refresh'
         action     = bool Nothing (Just $ _aTask a e t) refresh'
 
-    pure $ (action,) $ defEntity'
+    pure $ (action,) $ unchanged
       { attack = Set $ a & aCooldown.limVal .~ cooldown''
       , target = target'
       }
@@ -227,7 +228,7 @@ update dt = do
 
     pure $ if health <= 0
               then delEntity
-              else defEntity'
+              else unchanged
 
   -- do walking
   emap allEnts $ do
@@ -240,7 +241,7 @@ update dt = do
             False -> Unset
 
 
-    pure defEntity'
+    pure unchanged
       { pos = Set p
       , pathing = shouldStop
       }
@@ -305,7 +306,7 @@ playerNotWaiting mouse kb = do
         Unit <- query unitType
 
         guard $ o == lPlayer
-        pure defEntity'
+        pure unchanged
           { selected =
               case liftV2 (<=) tl p && liftV2 (<) p br of
                 True  -> Set ()
@@ -315,7 +316,7 @@ playerNotWaiting mouse kb = do
   when (mPress mouse buttonRight) $ do
     emap allEnts $ do
       with selected
-      pure defEntity'
+      pure unchanged
         { pathing = Set $ Goal $ mPos mouse
         }
 
@@ -342,6 +343,17 @@ playerNotWaiting mouse kb = do
 
 draw :: Mouse -> Game [Form]
 draw mouse = do
+  let Map drawGround
+          drawDoodads = maps M.! "hoth"
+      tiles = group . catMaybes $ do
+        x <- [0..14]
+        y <- [0..30]
+        pure $ move ((x, y) ^. tileScreen) <$> drawGround x y
+      doodads = group . catMaybes $ do
+        x <- [0..14]
+        y <- [0..30]
+        pure $ move ((x, y) ^. tileScreen) <$> drawDoodads x y
+
   es <- efor allEnts $ do
     p  <- query pos
     z  <- queryFlag selected
@@ -371,7 +383,9 @@ draw mouse = do
              in move p1 $ move (size ^* 0.5) $ traced' (rgb 0 1 0) $ rect w h
           Nothing -> mempty
 
-  pure $ es
+  pure $ tiles
+       : doodads
+       : es
       ++ exs
       ++ [ selbox
          ]
@@ -427,7 +441,7 @@ run = do
         , _lsDynamic = mkQuadTree (8, 8) (V2 800 600)
         }
 
-  let world = defWorld
+  let world = defStorage
               { pos = VTable vgetPos vsetPos
               }
       init = fst $ runGame (realState, (0, world)) initialize
