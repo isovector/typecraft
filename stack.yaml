@@ -11,10 +11,6 @@ packages:
     location:
       git: https://github.com/schell/aeson-tiled.git
       commit: 32fa27eb3313723062cbc771539c101ad3e5f0af
-  - extra-dep: true
-    location:
-      git: https://github.com/isovector/QuadTree.git
-      commit: 4f2993f3ae31d45216b06c6cbc9ea8da3f8bcf09
 
 extra-deps:
   - sdl2-2.3.0
@@ -23,6 +19,6 @@ extra-deps:
   - astar-0.3.0.0
   - aeson-1.2.2.0
   - th-abstraction-0.2.6.0
-
+  - transformers-0.5.5.0
 
 resolver: lts-9.0

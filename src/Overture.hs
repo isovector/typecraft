@@ -1,4 +1,6 @@
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE RankNTypes        #-}
 
 module Overture
   ( module Types
@@ -16,10 +18,13 @@ module Overture
 
 import           BasePrelude hiding (group, rotate, lazy, index, uncons, loop, inRange)
 import           Control.Lens hiding (without)
-import           Control.Monad.State (runState)
 import           Control.Monad.State.Class (get, gets, put, modify)
+import           Control.Monad.State.Strict (runState)
 import           Control.Monad.Trans.Class (lift)
+import           Control.Monad.Trans.State.Strict (StateT (..))
 import           Data.Ecstasy
+import           Data.Ecstasy.Internal
+import           Data.Ecstasy.Types
 import           Game.Sequoia hiding (form)
 import           Game.Sequoia.Utils (showTrace)
 import           Game.Sequoia.Window (MouseButton (..))
@@ -176,8 +181,17 @@ tileScreen = iso toScreen undefined
              )
              ( fromIntegral y * tileHeight / 2
              )
-    toWorld = undefined
 
--- projection :: M22 Double
--- projection = V2 (V2 0 0) (V2 0 0)
+
+unfuck
+    :: ( Monad (t m)
+       , Monad m
+       , HoistStorage t m world
+       )
+    => (forall x. t m x -> m (x, b))
+    -> SystemT world (t m) a
+    -> SystemT world m (b, a)
+unfuck f m = SystemT $ StateT $ \s -> do
+  ((_, a), b) <- f $ yieldSystemT (second hoistStorage s) m
+  pure ((b, a), s)
 

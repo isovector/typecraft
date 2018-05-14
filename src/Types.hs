@@ -17,7 +17,7 @@ import QuadTree.QuadTree (QuadTree)
 import Control.Lens (makeLenses, makePrisms)
 import Control.Monad.Coroutine
 import Control.Monad.Coroutine.SuspensionFunctors
-import Control.Monad.State
+import Control.Monad.State.Strict
 import Data.Ecstasy
 import Game.Sequoia
 import Game.Sequoia.Keyboard

@@ -32,6 +32,7 @@ executable typecraft
                , containers
                , array
                , ecstasy
+               , dlist
                , frpnow
                , htiled
                , lens

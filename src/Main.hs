@@ -1,14 +1,19 @@
+{-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -funfolding-use-threshold=100  #-}
 
 module Main where
 
 import           AbilityUtils
 import           Control.FRPNow.Time (delayTime)
+import           Control.Monad.Trans.Writer (WriterT (..))
+import           Control.Monad.Writer.Class (tell)
 import qualified Data.Map as M
 import qualified Data.Set as S
 import           Game.Sequoia.Keyboard
 import           Game.Sequoia.Window (mousePos, mouseButtons)
+import qualified Data.DList as DL
 import           Map
 import           Overture hiding (init)
 import           QuadTree.QuadTree (mkQuadTree)
@@ -21,6 +26,15 @@ gameWidth = 800
 
 gameHeight :: Num t => t
 gameHeight = 600
+
+
+screenRect :: (V2, V2)
+screenRect =
+    ( V2 (-buffer) (-buffer)
+    , V2 (gameWidth + buffer) (gameHeight + buffer)
+    )
+  where
+    buffer = 25
 
 
 mePlayer :: Player
@@ -146,7 +160,7 @@ psiStorm _ (TargetGround v2) = do
 
 initialize :: Game ()
 initialize = do
-  for_ [0 .. 20] $ \i -> do
+  for_ [0 .. 200] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
     createEntity newEntity
       { pos      = Just $ V2 (i * 10 + bool 0 400 mine) (i * 10)
@@ -341,54 +355,60 @@ playerNotWaiting mouse kb = do
   pure ()
 
 
+cull :: [(V2, Form)] -> [Form]
+cull = fmap (uncurry move)
+     . filter (flip QT.pointInRect screenRect . fst)
+
+
 draw :: Mouse -> Game [Form]
-draw mouse = do
+draw mouse = fmap (cull . DL.toList . fst)
+           . unfuck runWriterT
+           $ do
+  let emit a b = tell $ DL.singleton (a, b)
+
   let Map drawGround
           drawDoodads = maps M.! "hoth"
-      tiles = group . catMaybes $ do
-        x <- [0..14]
-        y <- [0..30]
-        pure $ move ((x, y) ^. tileScreen) <$> drawGround x y
-      doodads = group . catMaybes $ do
-        x <- [0..14]
-        y <- [0..30]
-        pure $ move ((x, y) ^. tileScreen) <$> drawDoodads x y
 
-  es <- efor allEnts $ do
+      screenCoords = do
+        x <- [0..14]
+        y <- [0..30]
+        pure (x, y)
+
+  for_ screenCoords $ \(x, y) ->
+    for_ (drawGround x y) $ \f ->
+      emit ((x, y) ^. tileScreen) f
+
+  for_ screenCoords $ \(x, y) ->
+    for_ (drawDoodads x y) $ \f ->
+      emit ((x, y) ^. tileScreen) f
+
+  void . efor allEnts $ do
     p  <- query pos
     z  <- queryFlag selected
     o  <- queryDef neutralPlayer owner
     ut <- query unitType
     sz <- queryDef 10 entSize
-
-    pure $ move p $ group
+    emit p $ group
       [ boolMonoid z $ traced' (rgb 0 1 0) $ circle $ sz + 5
       , case ut of
           Unit    -> filled (pColor o) $ circle sz
           Missile -> filled (rgb 0.7 0.7 0.7) $ circle 2
       ]
 
-  exs <- efor allEnts $ do
+  void . efor allEnts $ do
     p <- query pos
     g <- query gfx
-    pure $ move p g
+    emit p g
 
-  -- draw hud
   box <- lift $ gets _lsSelBox
-  let selbox =
-        case box of
-          Just bpos ->
-            let (p1, p2) = canonicalizeV2 bpos $ mPos mouse
-                size@(V2 w h) = p2 - p1
-             in move p1 $ move (size ^* 0.5) $ traced' (rgb 0 1 0) $ rect w h
-          Nothing -> mempty
+  for_ box $ \bpos -> do
+    let (p1, p2) = canonicalizeV2 bpos $ mPos mouse
+        size@(V2 w h) = p2 - p1
+    emit (p1 + size ^* 0.5)
+      . traced' (rgb 0 1 0)
+      $ rect w h
 
-  pure $ tiles
-       : doodads
-       : es
-      ++ exs
-      ++ [ selbox
-         ]
+  pure ()
 
 
 getMouse

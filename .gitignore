@@ -2,5 +2,7 @@
 cabal.sandbox.config
 dist/
 .stack-work/
+.stack-prof/
 /run
 TAGS
+*.prof
