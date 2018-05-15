@@ -13,7 +13,6 @@ module Types
   , Key (..)
   ) where
 
-import JumpGrid (JumpGrid)
 import Control.Lens (makeLenses, makePrisms)
 import Control.Monad.Coroutine
 import Control.Monad.Coroutine.SuspensionFunctors
@@ -28,7 +27,7 @@ import QuadTree.QuadTree (QuadTree)
 data Map = Map
   { mapGeometry  :: Int -> Int -> Maybe Form
   , mapDoodads   :: Int -> Int -> Maybe Form
-  , mapCollision :: JumpGrid
+  , mapCollision :: (Int, Int) -> (Int, Int) -> Maybe [(Int, Int)]
   , mapWidth     :: Int
   , mapHeight    :: Int
   }

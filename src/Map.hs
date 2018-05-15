@@ -3,10 +3,11 @@
 
 module Map where
 
-import           JumpGrid (JumpGrid, changeArea, make)
+import           Data.Graph.AStar
+import qualified Data.HashSet as HS
 import qualified Data.Map as M
 import           Data.Tiled
-import           Overture
+import           Overture hiding (distance)
 
 
 tileWidth :: Num t => t
@@ -61,11 +62,31 @@ parseMap TiledMap{..} =
     ts = orderTilesets mapTilesets
 
 
-makeGrid :: Int -> Int -> Layer -> JumpGrid
-makeGrid w h l = foldr f (make (w, h)) [(x, y) | y <- [0..h], x <- [0..w]]
+makeGrid
+    :: Int
+    -> Int
+    -> Layer
+    -> (Int, Int)
+    -> (Int, Int)
+    -> Maybe [(Int, Int)]
+makeGrid w h l = \src dst ->
+    fmap (src :) $ aStar neighbors distance (distance dst) (== dst) src
   where
-    f p j = bool j (changeArea False p p j) $ look p
-    look xy = maybe False (const True) $  M.lookup xy $ layerData l
+    neighbors (x, y) = HS.fromList $ do
+      dx <- [-1, 0, 1]
+      dy <- [-1, 0, 1]
+      let x' = dx + x
+          y' = dy + y
+      guard $ dx /= 0 || dy /= 0
+      guard $ x' >= 0
+      guard $ y' >= 0
+      guard $ x' < w
+      guard $ y' < h
+      guard $ not $ look x y
+      pure (x', y')
+
+    distance (ax, ay) (bx, by) = quadrance $ V2 ax ay - V2 bx by
+    look x y = maybe False (const True) $  M.lookup (x, y) $ layerData l
 
 
 maps :: M.Map String Map

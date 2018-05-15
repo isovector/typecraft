@@ -4,7 +4,6 @@
 
 module Main where
 
-import           JumpGrid (findPath, Path (..))
 import           Client
 import           Control.Monad.Trans.Writer (WriterT (..))
 import           Control.Monad.Writer.Class (tell)
@@ -130,7 +129,7 @@ initialize = do
     , actions  = Just [psiStormAction]
     }
 
-  let CompletePath pf = showTrace $ findPath grid (17, 4) (4, 2)
+  let Just pf = showTrace $ grid (17, 4) (4, 2)
       ps = fmap (view centerTileScreen) pf
       gfz = traced defaultLine { lineColor = rgb 1 0 1
                                , lineWidth = 3
