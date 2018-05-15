@@ -21,10 +21,8 @@ import           Control.Lens hiding (without)
 import           Control.Monad.State.Class (get, gets, put, modify)
 import           Control.Monad.State.Strict (runState)
 import           Control.Monad.Trans.Class (lift)
-import           Control.Monad.Trans.State.Strict (StateT (..))
 import           Data.Ecstasy
-import           Data.Ecstasy.Internal
-import           Data.Ecstasy.Types
+import           Data.Ecstasy.Internal (surgery)
 import           Game.Sequoia hiding (form)
 import           Game.Sequoia.Utils (showTrace)
 import           Game.Sequoia.Window (MouseButton (..))
@@ -181,17 +179,4 @@ tileScreen = iso toScreen undefined
              )
              ( fromIntegral y * tileHeight / 2
              )
-
-
-unfuck
-    :: ( Monad (t m)
-       , Monad m
-       , HoistStorage t m world
-       )
-    => (forall x. t m x -> m (x, b))
-    -> SystemT world (t m) a
-    -> SystemT world m (b, a)
-unfuck f m = SystemT $ StateT $ \s -> do
-  ((_, a), b) <- f $ yieldSystemT (second hoistStorage s) m
-  pure ((b, a), s)
 

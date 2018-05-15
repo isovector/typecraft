@@ -1,31 +1,19 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE NoImplicitPrelude #-}
-{-# OPTIONS_GHC -ddump-simpl -dsuppress-all -funfolding-use-threshold=100  #-}
 
 module Main where
 
-import           AbilityUtils
-import           Control.FRPNow.Time (delayTime)
+import           Client
 import           Control.Monad.Trans.Writer (WriterT (..))
 import           Control.Monad.Writer.Class (tell)
-import qualified Data.Map as M
-import qualified Data.Set as S
-import           Game.Sequoia.Keyboard
-import           Game.Sequoia.Window (mousePos, mouseButtons)
 import qualified Data.DList as DL
+import qualified Data.Map as M
+import           GameData
 import           Map
 import           Overture hiding (init)
 import           QuadTree.QuadTree (mkQuadTree)
 import qualified QuadTree.QuadTree as QT
-
-
-gameWidth :: Num t => t
-gameWidth = 800
-
-
-gameHeight :: Num t => t
-gameHeight = 600
 
 
 screenRect :: (V2, V2)
@@ -35,59 +23,6 @@ screenRect =
     )
   where
     buffer = 25
-
-
-mePlayer :: Player
-mePlayer = Player $ rgb 1 0 0
-
-
-neutralPlayer :: Player
-neutralPlayer = Player $ rgb 0.25 0.55 0.95
-
-
-gunAttackData :: Attack
-gunAttackData = Attack
-  { _aCooldown  = Limit 0 0.75
-  , _aRange     = 300
-  , _aTask      = missile (missileEnt 300) $ \v2 t -> do
-      doDamage (Just 30) 30 v2 t
-      explosion v2 1 $ \d -> scale (d + 0.01)
-                           . filled (rgba 1 0 0 $ 1 - d / 2)
-                           . circle
-                           $ 8 + d * 3
-  }
-
-
-
-psiStormAction :: Action
-psiStormAction = Action
-  { _acName   = "Psi Storm"
-  , _acHotkey = Just PKey
-  , _acTType  = TargetTypeGround ()
-  , _acTask   = psiStorm
-  }
-
-
-attackAction :: Action
-attackAction = Action
-  { _acName   = "Attack"
-  , _acHotkey = Just AKey
-  , _acTType  = TargetTypeUnit ()
-  , _acTask   = \e t -> lift $ setEntity e unchanged { target = Set t }
-  }
-
-
-stopAction :: Action
-stopAction = Action
-  { _acName   = "Stop"
-  , _acHotkey = Just SKey
-  , _acTType  = TargetTypeInstant ()
-  , _acTask   = \e _ ->
-      lift $ setEntity e unchanged
-        { target  = Unset
-        , pathing = Unset
-        }
-  }
 
 
 separateTask :: Task ()
@@ -126,41 +61,9 @@ separateTask = do
             }
 
 
-
-
-psiStorm :: Ability
-psiStorm _ (TargetUnit {}) = error "no can do"
-psiStorm _ (TargetGround v2) = do
-  let size       = 100
-      dmg        = 100
-      flashTime  = 0.1
-      waitPeriod = 0.75
-      cycles     = 4
-
-  let add  = V2 size size ^* 0.5
-      p1   = v2 - add
-      p2   = v2 + add
-      form = rect size size
-
-  lift . explosion v2 (waitPeriod * cycles)
-       . const
-       $ filled (rgba 0 0.8 1 0.3) form
-  for_ [0 .. cycles - 1] . const $ do
-    wait waitPeriod
-    lift $ do
-      explosion v2 flashTime
-        . const
-        $ filled (rgb 0 0.8 1) form
-      inRange <- getUnitsInSquare p1 p2
-      eover (someEnts inRange)
-        . fmap ((),)
-        $ performDamage dmg
-
-
-
 initialize :: Game ()
 initialize = do
-  for_ [0 .. 200] $ \i -> do
+  for_ [0 .. 20] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
     createEntity newEntity
       { pos      = Just $ V2 (i * 10 + bool 0 400 mine) (i * 10)
@@ -289,8 +192,8 @@ player mouse kb = do
                 $ TargetUnit sel
               unsetTT
 
-
   when (mPress mouse buttonRight) unsetTT
+
 
 unsetTT :: Game ()
 unsetTT = lift
@@ -362,7 +265,7 @@ cull = fmap (uncurry move)
 
 draw :: Mouse -> Game [Form]
 draw mouse = fmap (cull . DL.toList . fst)
-           . unfuck runWriterT
+           . surgery runWriterT
            $ do
   let emit a b = tell $ DL.singleton (a, b)
 
@@ -411,82 +314,17 @@ draw mouse = fmap (cull . DL.toList . fst)
   pure ()
 
 
-getMouse
-    :: B (MouseButton -> Bool)
-    -> B (MouseButton -> Bool)
-    -> B (Int, Int)
-    -> B Mouse
-getMouse buttons oldButtons mouse = do
-  mPos     <- toV2 <$> sample mouse
-  mPress   <- sample $ (\b' b z -> b' z && not (b z)) <$> buttons <*> oldButtons
-  mUnpress <- sample $ (\b' b z -> b' z && not (b z)) <$> oldButtons <*> buttons
-  mDown    <- sample buttons
-  let mUp = fmap not mDown
-  pure Mouse {..}
-
-
-getKB
-    :: B [Key]
-    -> B [Key]
-    -> B Keyboard
-getKB keys oldKeys = do
-  kDown     <- keys
-  kLastDown <- oldKeys
-  let kPress k   = elem k kDown && not (elem k kLastDown)
-      kUnpress k = elem k kLastDown && not (elem k kDown)
-      kPresses = S.toList $ S.fromList kDown S.\\ S.fromList kLastDown
-  pure Keyboard {..}
-
-
-run :: N (B Element)
-run = do
-  clock    <- deltaTime <$> getClock
-
-  keyboard <- do
-    kb <- getKeyboard
-    oldKb <- sample $ delayTime clock [] kb
-    pure $ getKB kb oldKb
-
-  mouseB <- do
-    mb    <- mouseButtons
-    oldMb <- sample $ delayTime clock (const False) mb
-    mpos  <- mousePos
-    pure $ getMouse mb oldMb mpos
-
-  let realState = LocalState
-        { _lsSelBox     = Nothing
-        , _lsPlayer     = mePlayer
-        , _lsTasks      = []
-        , _lsTargetType = Nothing
-        , _lsDynamic = mkQuadTree (8, 8) (V2 800 600)
-        }
-
-  let world = defStorage
-              { pos = VTable vgetPos vsetPos
-              }
-      init = fst $ runGame (realState, (0, world)) initialize
-
-  (game, _) <- foldmp init $ \state -> do
-    -- arrs  <- sample $ arrows keyboard
-    dt    <- sample clock
-    kb    <- sample keyboard
-    mouse <- sample mouseB
-
-    pure $ fst $ runGame state $ do
-      player mouse kb
-      update dt
-
-  pure $ do
-    state <- sample game
-    mouse <- sample mouseB
-
-    pure . collage gameWidth gameHeight
-         . evalGame state
-         $ draw mouse
-
-
 main :: IO ()
-main = play config (const run) pure
+main = play config (const $ run realState initialize player update draw) pure
   where
     config = EngineConfig (gameWidth, gameHeight) "Typecraft"
            $ rgb 0 0 0
+
+    realState = LocalState
+          { _lsSelBox     = Nothing
+          , _lsPlayer     = mePlayer
+          , _lsTasks      = []
+          , _lsTargetType = Nothing
+          , _lsDynamic = mkQuadTree (8, 8) (V2 800 600)
+          }
+
