@@ -26,6 +26,36 @@ screenRect =
     buffer = 25
 
 
+acquireTask :: Ent -> Task ()
+acquireTask ent = do
+  let refreshRate  = 0.25
+      debounceRate = 3
+  fix $ \loop -> do
+    wait refreshRate
+    stuff <- lift . runQueryT ent
+                  $ (,,,) <$> query pos
+                          <*> query acqRange
+                          <*> query attack
+                          <*> query owner
+    for_ stuff $ \(p, acq, att, o) -> do
+      badGuys <- lift $ efor (fmap fst <$> getUnitsInRange p acq) $ do
+        o' <- query owner
+        guard $ isEnemy o o'
+        (,) <$> queryEnt
+            <*> query pos
+      let bads = sortBy (comparing $ quadrance . (p - ) . snd) badGuys
+
+      for_ (listToMaybe bads) $ \(t, tp) -> do
+        let dir = p - tp
+            acqPos = (normalize dir ^* _aRange att) + tp
+        lift $ setEntity ent unchanged
+          { target = Set $ TargetUnit t
+          , pathing = bool Unset (Set $ Goal acqPos) $ norm dir > _aRange att
+          }
+        wait debounceRate
+      loop
+
+
 separateTask :: Task ()
 separateTask = do
   dyn0 <- lift $ gets _lsDynamic
@@ -66,10 +96,11 @@ initialize :: Game ()
 initialize = do
   for_ [0 .. 20] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
-    createEntity newEntity
-      { pos      = Just $ V2 (i * 10 + bool 0 400 mine) (i * 10)
+    ent <- createEntity newEntity
+      { pos      = Just $ V2 (50 + i * 10 + bool 0 400 mine) (50 + i * 10)
       , attack   = Just gunAttackData
       , entSize  = Just 10
+      , acqRange = Just 125
       , speed    = Just 150
       , selected = bool Nothing (Just ()) mine
       , owner    = Just $ bool neutralPlayer mePlayer mine
@@ -77,6 +108,7 @@ initialize = do
       , hp       = Just $ Limit 100 100
       , actions  = Just [attackAction, stopAction]
       }
+    start $ acquireTask ent
 
   void $ createEntity newEntity
     { pos      = Just $ V2 700 300
@@ -200,6 +232,9 @@ unsetTT :: Game ()
 unsetTT = modify
         $ lsTargetType .~ Nothing
 
+isEnemy :: Player -> Player -> Bool
+isEnemy = (/=)
+
 
 playerNotWaiting :: Mouse -> Keyboard -> Game ()
 playerNotWaiting mouse kb = do
@@ -222,7 +257,8 @@ playerNotWaiting mouse kb = do
         o    <- query owner
         Unit <- query unitType
 
-        guard $ o == lPlayer
+        guard $ not $ isEnemy lPlayer o
+
         pure unchanged
           { selected =
               case liftV2 (<=) tl p && liftV2 (<) p br of
@@ -291,12 +327,31 @@ draw mouse = fmap (cull . DL.toList . fst)
     o  <- queryDef neutralPlayer owner
     ut <- query unitType
     sz <- queryDef 10 entSize
+
+    let col = pColor o
     emit p $ group
       [ boolMonoid z $ traced' (rgb 0 1 0) $ circle $ sz + 5
       , case ut of
-          Unit    -> filled (pColor o) $ circle sz
-          Missile -> filled (rgb 0.7 0.7 0.7) $ circle 2
+          Unit    -> filled col $ circle sz
+          Missile -> filled (rgb 0 0 0) $ circle 2
       ]
+
+    -- debug draw
+    ( do
+      Goal g <- query pathing
+      Unit <- query unitType
+      let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
+      emit (V2 0 0) $ traced ls $ path [p, g]
+      emit g $ outlined ls $ circle 5
+      ) <|> pure ()
+
+    ( do
+      att  <- query attack
+      acq <- query acqRange
+
+      emit p $ traced' (rgba 0.7 0 0 0.3) $ circle $ _aRange att
+      emit p $ traced' (rgba 0.4 0.4 0.4 0.3) $ circle $ acq
+      ) <|> pure ()
 
   void . efor allEnts $ do
     p <- query pos

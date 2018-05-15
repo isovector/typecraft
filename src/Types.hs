@@ -128,6 +128,7 @@ data EntWorld f = World
   { pos      :: !(Component f 'Virtual V2)
   , gfx      :: !(Field f Form)
   , hp       :: !(Field f (Limit Int))
+  , acqRange :: !(Field f Double)
   , pathing  :: !(Field f Nav)
   , speed    :: !(Field f Double)
   , entSize  :: !(Field f Double)

@@ -17,7 +17,7 @@ neutralPlayer = Player $ rgb 0.25 0.55 0.95
 gunAttackData :: Attack
 gunAttackData = Attack
   { _aCooldown  = Limit 0 0.75
-  , _aRange     = 300
+  , _aRange     = 75
   , _aTask      = missile (missileEnt 300) $ \v2 t -> do
       doDamage (Just 30) 30 v2 t
       explosion v2 1 $ \d -> scale (d + 0.01)
@@ -52,7 +52,7 @@ stopAction = Action
 psiStormAction :: Action
 psiStormAction = Action
   { _acName   = "Psi Storm"
-  , _acHotkey = Just PKey
+  , _acHotkey = Just TKey
   , _acTType  = TargetTypeGround ()
   , _acTask   = psiStorm
   }
