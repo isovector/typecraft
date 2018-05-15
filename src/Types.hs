@@ -25,8 +25,11 @@ import Game.Sequoia.Window (MouseButton (..))
 
 
 data Map = Map
-  { mapGeometry :: Int -> Int -> Maybe Form
-  , mapDoodads  :: Int -> Int -> Maybe Form
+  { mapGeometry  :: Int -> Int -> Maybe Form
+  , mapDoodads   :: Int -> Int -> Maybe Form
+  , mapCollision :: Int -> Int -> Maybe Form
+  , mapWidth     :: Int
+  , mapHeight    :: Int
   }
 
 

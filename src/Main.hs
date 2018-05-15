@@ -23,7 +23,7 @@ screenRect =
     , V2 (gameWidth + buffer) (gameHeight + buffer)
     )
   where
-    buffer = 25
+    buffer = 64
 
 
 acquireTask :: Ent -> Task ()
@@ -306,20 +306,23 @@ draw mouse = fmap (cull . DL.toList . fst)
   let emit a b = tell $ DL.singleton (a, b)
 
   let Map drawGround
-          drawDoodads = maps M.! "hoth"
+          drawDoodads
+          drawCollision
+          mapWidth
+          mapHeight = maps M.! "hoth"
 
       screenCoords = do
         x <- [0..14]
-        y <- [0..30]
+        y <- [0..40]
         pure (x, y)
 
   for_ screenCoords $ \(x, y) ->
     for_ (drawGround x y) $ \f ->
-      emit ((x, y) ^. tileScreen) f
+      emit ((x, y) ^. tileScreen + V2 400 0) f
 
   for_ screenCoords $ \(x, y) ->
     for_ (drawDoodads x y) $ \f ->
-      emit ((x, y) ^. tileScreen) f
+      emit ((x, y) ^. tileScreen + V2 400 0) f
 
   void . efor allEnts $ do
     p  <- query pos

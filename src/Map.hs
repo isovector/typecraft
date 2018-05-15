@@ -48,11 +48,15 @@ parseMap :: TiledMap -> Map
 parseMap TiledMap{..} =
     Map (drawSquare ground ts)
         (drawSquare doodads ts)
+        (drawSquare collision ts)
+        mapWidth
+        mapHeight
   where
     getLayer name = maybe (error $ "no " <> name <> " layer") id
                   $ find ((== name) . layerName) mapLayers
-    ground = getLayer "ground"
-    doodads = getLayer "doodads"
+    ground    = getLayer "ground"
+    doodads   = getLayer "doodads"
+    collision = getLayer "collision"
     ts = orderTilesets mapTilesets
 
 

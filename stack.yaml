@@ -3,6 +3,7 @@ packages:
   - '.'
   - '../ecstasy'
   - '../sequoia'
+  - '../haskell-jps'
   - extra-dep: true
     location:
       git: https://github.com/isovector/htiled.git

@@ -19,7 +19,7 @@ gunAttackData = Attack
   { _aCooldown  = Limit 0 0.75
   , _aRange     = 75
   , _aTask      = missile (missileEnt 300) $ \v2 t -> do
-      doDamage (Just 30) 30 v2 t
+      doDamage Nothing 30 v2 t
       explosion v2 1 $ \d -> scale (d + 0.01)
                            . filled (rgba 1 0 0 $ 1 - d / 2)
                            . circle
