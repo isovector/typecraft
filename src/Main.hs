@@ -9,6 +9,7 @@ import           Control.Monad.Trans.Writer (WriterT (..))
 import           Control.Monad.Writer.Class (tell)
 import qualified Data.DList as DL
 import qualified Data.Map as M
+import           Game.Sequoia.Keyboard
 import           GameData
 import           Map
 import           Overture hiding (init)
@@ -175,14 +176,14 @@ player mouse kb = do
       case tt of
         TargetTypeInstant (Using ent a) -> do
           start . a ent $ TargetUnit ent
-          unsetTT
+          unless (kDown kb LeftShiftKey) unsetTT
         TargetTypeGround (Using ent a) ->
           when (mPress mouse buttonLeft) $ do
             start
               . a ent
               . TargetGround
               $ mPos mouse
-            unsetTT
+            unless (kDown kb LeftShiftKey) unsetTT
         TargetTypeUnit (Using ent a) ->
           when (mPress mouse buttonLeft) $ do
             msel <- getUnitAtPoint $ mPos mouse
@@ -190,7 +191,7 @@ player mouse kb = do
               start
                 . a ent
                 $ TargetUnit sel
-              unsetTT
+              unless (kDown kb LeftShiftKey) unsetTT
 
   when (mPress mouse buttonRight) unsetTT
 

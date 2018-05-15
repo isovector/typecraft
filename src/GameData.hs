@@ -2,8 +2,9 @@
 
 module GameData where
 
-import  Overture
-import  AbilityUtils
+import AbilityUtils
+import Overture
+
 
 mePlayer :: Player
 mePlayer = Player $ rgb 1 0 0

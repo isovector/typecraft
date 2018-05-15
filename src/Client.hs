@@ -42,11 +42,13 @@ getKB
     -> B [Key]
     -> B Keyboard
 getKB keys oldKeys = do
-  kDown     <- keys
+  kDowns    <- keys
   kLastDown <- oldKeys
-  let kPress k   = elem k kDown && not (elem k kLastDown)
-      kUnpress k = elem k kLastDown && not (elem k kDown)
-      kPresses = S.toList $ S.fromList kDown S.\\ S.fromList kLastDown
+  let kPress k   = elem k kDowns && not (elem k kLastDown)
+      kUnpress k = elem k kLastDown && not (elem k kDowns)
+      kPresses = S.toList $ S.fromList kDowns S.\\ S.fromList kLastDown
+      kDown k = elem k kDowns
+      kUp k = not $ elem k kDowns
   pure Keyboard {..}
 
 

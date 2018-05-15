@@ -41,6 +41,8 @@ data Keyboard = Keyboard
   { kPress   :: !(Key -> Bool)
   , kUnpress :: !(Key -> Bool)
   , kPresses :: ![Key]
+  , kDown    :: !(Key -> Bool)
+  , kUp      :: !(Key -> Bool)
   }
 
 
