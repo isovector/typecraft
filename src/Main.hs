@@ -28,7 +28,7 @@ screenRect =
 
 separateTask :: Task ()
 separateTask = do
-  dyn0 <- lift . lift $ gets _lsDynamic
+  dyn0 <- lift $ gets _lsDynamic
   let zones = QT.zones dyn0
       howMany = 10 :: Int
 
@@ -167,7 +167,7 @@ update dt = do
 
 player :: Mouse -> Keyboard -> Game ()
 player mouse kb = do
-  curTT <- lift $ gets _lsTargetType
+  curTT <- gets _lsTargetType
 
   case curTT of
     Nothing -> playerNotWaiting mouse kb
@@ -197,23 +197,22 @@ player mouse kb = do
 
 
 unsetTT :: Game ()
-unsetTT = lift
-        . modify
+unsetTT = modify
         $ lsTargetType .~ Nothing
 
 
 playerNotWaiting :: Mouse -> Keyboard -> Game ()
 playerNotWaiting mouse kb = do
   when (mPress mouse buttonLeft) $ do
-    lift $ modify $ lsSelBox ?~ mPos mouse
+    modify $ lsSelBox ?~ mPos mouse
 
   when (mUnpress mouse buttonLeft) $ do
     -- TODO(sandy): finicky
-    mp1 <- lift $ gets _lsSelBox
+    mp1 <- gets _lsSelBox
     for_ mp1 $ \p1 -> do
-      lPlayer <- lift $ gets _lsPlayer
+      lPlayer <- gets _lsPlayer
 
-      lift $ modify $ lsSelBox .~ Nothing
+      modify $ lsSelBox .~ Nothing
       let p2 = mPos mouse
           (tl, br) = canonicalizeV2 p1 p2
 
@@ -254,7 +253,7 @@ playerNotWaiting mouse kb = do
          . fmap join
          . catMaybes
          $ sequence z
-  lift . modify $ lsTargetType .~ zz
+  modify $ lsTargetType .~ zz
 
   pure ()
 
@@ -304,7 +303,7 @@ draw mouse = fmap (cull . DL.toList . fst)
     g <- query gfx
     emit p g
 
-  box <- lift $ gets _lsSelBox
+  box <- gets _lsSelBox
   for_ box $ \bpos -> do
     let (p1, p2) = canonicalizeV2 bpos $ mPos mouse
         size@(V2 w h) = p2 - p1
