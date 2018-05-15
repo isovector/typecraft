@@ -3,9 +3,10 @@
 
 module Map where
 
+import           Algorithm.JPS.Grid (Grid, newGrid)
 import qualified Data.Map as M
-import Overture
-import Data.Tiled
+import           Data.Tiled
+import           Overture
 
 
 tileWidth :: Num t => t
@@ -48,7 +49,7 @@ parseMap :: TiledMap -> Map
 parseMap TiledMap{..} =
     Map (drawSquare ground ts)
         (drawSquare doodads ts)
-        (drawSquare collision ts)
+        (makeGrid mapWidth mapHeight collision)
         mapWidth
         mapHeight
   where
@@ -58,6 +59,11 @@ parseMap TiledMap{..} =
     doodads   = getLayer "doodads"
     collision = getLayer "collision"
     ts = orderTilesets mapTilesets
+
+
+makeGrid :: Int -> Int -> Layer -> Grid
+makeGrid w h l = newGrid w h $ \x y -> 1
+  -- maybe 1 (const 0) $  M.lookup (x, y) $ layerData l
 
 
 maps :: M.Map String Map

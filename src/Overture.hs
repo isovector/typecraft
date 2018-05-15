@@ -173,7 +173,7 @@ tileScreen = iso toScreen undefined
     tileWidth = 64
     tileHeight = 32
     toScreen (x, y) =
-      let shifted = y `mod` 2 == 1
-       in V2 ( fromIntegral (x - y) * tileWidth / 2)
-             ( fromIntegral (x + y) * tileHeight / 2)
+      V2 (fromIntegral (x - y) * tileWidth / 2)
+         (fromIntegral (x + y) * tileHeight / 2)
+       + V2 200 0
 

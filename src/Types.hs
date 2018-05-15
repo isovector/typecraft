@@ -13,7 +13,7 @@ module Types
   , Key (..)
   ) where
 
-import QuadTree.QuadTree (QuadTree)
+import Algorithm.JPS.Grid
 import Control.Lens (makeLenses, makePrisms)
 import Control.Monad.Coroutine
 import Control.Monad.Coroutine.SuspensionFunctors
@@ -22,12 +22,13 @@ import Data.Ecstasy
 import Game.Sequoia
 import Game.Sequoia.Keyboard
 import Game.Sequoia.Window (MouseButton (..))
+import QuadTree.QuadTree (QuadTree)
 
 
 data Map = Map
   { mapGeometry  :: Int -> Int -> Maybe Form
   , mapDoodads   :: Int -> Int -> Maybe Form
-  , mapCollision :: Int -> Int -> Maybe Form
+  , mapCollision :: Grid
   , mapWidth     :: Int
   , mapHeight    :: Int
   }

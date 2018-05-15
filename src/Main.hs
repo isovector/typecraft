@@ -4,6 +4,8 @@
 
 module Main where
 
+import           Algorithm.JPS (findPathJPS)
+import           Algorithm.JPS.Grid (Grid (..), i2c, c2i, Coord (..))
 import           Client
 import           Control.Monad.Trans.Writer (WriterT (..))
 import           Control.Monad.Writer.Class (tell)
@@ -94,7 +96,17 @@ separateTask = do
 
 initialize :: Game ()
 initialize = do
-  for_ [0 .. 20] $ \i -> do
+  let Map _
+          _
+          grid@(Grid dims _)
+          _
+          _ = maps M.! "hoth"
+
+      pf = showTrace $ fmap (i2c dims)
+         $ findPathJPS grid (c2i dims $ Coord 1 1) (c2i dims $ Coord 4 2)
+
+
+  for_ [0 .. 0] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
     ent <- createEntity newEntity
       { pos      = Just $ V2 (50 + i * 10 + bool 0 400 mine) (50 + i * 10)
@@ -122,7 +134,23 @@ initialize = do
     , actions  = Just [psiStormAction]
     }
 
+  let ps = fmap (view tileScreen . coord2Int) pf
+      gfz = group
+           $ zipWith (\a b ->
+              traced defaultLine { lineColor = rgb 1 0 1
+                                 , lineWidth = 3
+                                 }
+                $ path [a, b]
+                     ) ps $ tail ps
+  void $ createEntity newEntity
+    { pos = Just $ V2 0 0
+    , gfx = Just gfz
+    }
+
   start separateTask
+
+coord2Int :: Coord -> (Int, Int)
+coord2Int (Coord x y) = (x, y)
 
 
 moveTowards :: Time -> V2 -> Query (Bool, V2)
@@ -307,22 +335,22 @@ draw mouse = fmap (cull . DL.toList . fst)
 
   let Map drawGround
           drawDoodads
-          drawCollision
+          _
           mapWidth
           mapHeight = maps M.! "hoth"
 
       screenCoords = do
-        x <- [0..14]
-        y <- [0..40]
+        x <- [0..mapWidth]
+        y <- [0..mapHeight]
         pure (x, y)
 
   for_ screenCoords $ \(x, y) ->
     for_ (drawGround x y) $ \f ->
-      emit ((x, y) ^. tileScreen + V2 400 0) f
+      emit ((x, y) ^. tileScreen) f
 
   for_ screenCoords $ \(x, y) ->
     for_ (drawDoodads x y) $ \f ->
-      emit ((x, y) ^. tileScreen + V2 400 0) f
+      emit ((x, y) ^. tileScreen) f
 
   void . efor allEnts $ do
     p  <- query pos
