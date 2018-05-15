@@ -177,3 +177,13 @@ tileScreen = iso toScreen undefined
          (fromIntegral (x + y) * tileHeight / 2)
        + V2 200 0
 
+centerTileScreen :: Iso' (Int, Int) V2
+centerTileScreen = iso ((+ V2 (tileWidth / 2) (tileHeight / 2)) . toScreen) undefined
+  where
+    tileWidth = 64
+    tileHeight = 32
+    toScreen (x, y) =
+      V2 (fromIntegral (x - y) * tileWidth / 2)
+         (fromIntegral (x + y) * tileHeight / 2)
+       + V2 200 0
+

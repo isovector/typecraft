@@ -4,8 +4,7 @@
 
 module Main where
 
-import           Algorithm.JPS (findPathJPS)
-import           Algorithm.JPS.Grid (Grid (..), i2c, c2i, Coord (..))
+import           JumpGrid (findPath, Path (..))
 import           Client
 import           Control.Monad.Trans.Writer (WriterT (..))
 import           Control.Monad.Writer.Class (tell)
@@ -98,12 +97,9 @@ initialize :: Game ()
 initialize = do
   let Map _
           _
-          grid@(Grid dims _)
+          grid
           _
           _ = maps M.! "hoth"
-
-      pf = showTrace $ fmap (i2c dims)
-         $ findPathJPS grid (c2i dims $ Coord 1 1) (c2i dims $ Coord 4 2)
 
 
   for_ [0 .. 0] $ \i -> do
@@ -134,23 +130,18 @@ initialize = do
     , actions  = Just [psiStormAction]
     }
 
-  let ps = fmap (view tileScreen . coord2Int) pf
-      gfz = group
-           $ zipWith (\a b ->
-              traced defaultLine { lineColor = rgb 1 0 1
-                                 , lineWidth = 3
-                                 }
-                $ path [a, b]
-                     ) ps $ tail ps
+  let CompletePath pf = showTrace $ findPath grid (17, 4) (4, 2)
+      ps = fmap (view centerTileScreen) pf
+      gfz = traced defaultLine { lineColor = rgb 1 0 1
+                               , lineWidth = 3
+                               }
+                $ path ps
   void $ createEntity newEntity
     { pos = Just $ V2 0 0
     , gfx = Just gfz
     }
 
   start separateTask
-
-coord2Int :: Coord -> (Int, Int)
-coord2Int (Coord x y) = (x, y)
 
 
 moveTowards :: Time -> V2 -> Query (Bool, V2)

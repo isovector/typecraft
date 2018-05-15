@@ -34,7 +34,7 @@ executable typecraft
                , ecstasy
                , dlist
                , frpnow
-               , haskell-jps
+               , jps
                , htiled
                , lens
                , linear

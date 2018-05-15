@@ -3,7 +3,7 @@
 
 module Map where
 
-import           Algorithm.JPS.Grid (Grid, newGrid)
+import           JumpGrid (JumpGrid, changeArea, make)
 import qualified Data.Map as M
 import           Data.Tiled
 import           Overture
@@ -61,9 +61,11 @@ parseMap TiledMap{..} =
     ts = orderTilesets mapTilesets
 
 
-makeGrid :: Int -> Int -> Layer -> Grid
-makeGrid w h l = newGrid w h $ \x y -> 1
-  -- maybe 1 (const 0) $  M.lookup (x, y) $ layerData l
+makeGrid :: Int -> Int -> Layer -> JumpGrid
+makeGrid w h l = foldr f (make (w, h)) [(x, y) | y <- [0..h], x <- [0..w]]
+  where
+    f p j = bool j (changeArea False p p j) $ look p
+    look xy = maybe False (const True) $  M.lookup xy $ layerData l
 
 
 maps :: M.Map String Map
