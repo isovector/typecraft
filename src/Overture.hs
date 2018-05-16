@@ -18,7 +18,7 @@ module Overture
 
 import           BasePrelude hiding (group, rotate, lazy, index, uncons, loop, inRange)
 import           Control.Lens hiding (without)
-import           Control.Monad.State.Class (get, gets, put, modify)
+import           Control.Monad.State.Class (MonadState, get, gets, put, modify)
 import           Control.Monad.State.Strict (runState)
 import           Control.Monad.Trans.Class (lift)
 import qualified Data.Ecstasy as E
@@ -190,23 +190,31 @@ withinV2 p1 p2 d =
    in qd <= d1
 
 
-tileScreen :: Iso' (Int, Int) V2
-tileScreen = iso toScreen undefined
-  where
-    tileWidth = 64
-    tileHeight = 32
-    toScreen (x, y) =
-      V2 (fromIntegral (x - y) * tileWidth / 2)
-         (fromIntegral (x + y) * tileHeight / 2)
-       + V2 200 0
-
 centerTileScreen :: Iso' (Int, Int) V2
-centerTileScreen = iso ((+ V2 (tileWidth / 2) (tileHeight / 2)) . toScreen) undefined
+centerTileScreen = iso ((+ center) . toScreen) (fromScreen . (subtract center))
   where
-    tileWidth = 64
-    tileHeight = 32
+    center = V2 halfTileWidth halfTileHeight
+    camera = V2 200 0
+
     toScreen (x, y) =
-      V2 (fromIntegral (x - y) * tileWidth / 2)
-         (fromIntegral (x + y) * tileHeight / 2)
-       + V2 200 0
+      V2 (fromIntegral (x - y) * halfTileWidth)
+         (fromIntegral (x + y) * halfTileHeight)
+       + camera
+    fromScreen (subtract camera -> V2 x y) =
+      ( round $ (x / halfTileWidth + y / halfTileHeight) / 2
+      , round $ (y / halfTileHeight - x / halfTileWidth) / 2
+      )
+
+findPath :: MonadState LocalState m => V2 -> V2 -> m (Maybe [V2])
+findPath src dst = do
+  pathFind <- gets $ mapCollision . _lsMap
+  pure $ fmap (view centerTileScreen)
+     <$> pathFind (src ^. from centerTileScreen)
+                  (dst ^. from centerTileScreen)
+
+halfTileWidth :: Fractional a => a
+halfTileWidth = 64 / 2
+
+halfTileHeight :: Fractional a => a
+halfTileHeight = 32 / 2
 

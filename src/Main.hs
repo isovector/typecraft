@@ -85,18 +85,16 @@ separateTask = do
         lift . when (withinV2 p1 p2 s) $ do
           setEntity e1 unchanged
             { pos = Set $ p1 + dir ^* s1
-            , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p2 s2) g1
+            -- , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p2 s2) g1
             }
           setEntity e2 unchanged
             { pos = Set $ p2 - dir ^* s2
-            , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p1 s1) g2
+            -- , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p1 s1) g2
             }
 
 
 initialize :: Game ()
 initialize = do
-  grid <- gets $ mapCollision . _lsMap
-
   for_ [0 .. 10] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
     ent <- createEntity newEntity
@@ -125,17 +123,6 @@ initialize = do
     , hp       = Just $ Limit 100 100
     , actions  = Just [psiStormAction]
     , moveType = Just GroundMovement
-    }
-
-  let Just pf = showTrace $ grid (17, 4) (4, 2)
-      ps = fmap (view centerTileScreen) pf
-      gfz = traced defaultLine { lineColor = rgb 1 0 1
-                               , lineWidth = 3
-                               }
-                $ path ps
-  void $ createEntity newEntity
-    { pos = Just $ V2 0 0
-    , gfx = Just gfz
     }
 
   start separateTask
@@ -196,15 +183,25 @@ update dt = do
               then delEntity
               else unchanged
 
+  -- run pathfinding
+  emap aliveEnts $ do
+    p <- query pos
+    Goal g <- query pathing
+
+    thepath <- findPath p g
+    pure unchanged
+      { pathing = fmap Path $ maybeToUpdate thepath
+      }
+
   -- do walking
   emap aliveEnts $ do
-    Goal g           <- query pathing
+    Path (g:gs)      <- query pathing
     (notThereYet, p) <- moveTowards dt g
 
     let shouldStop =
           case notThereYet of
             True  -> Keep
-            False -> Unset
+            False -> bool (Set $ Path gs) Unset $ null gs
 
 
     pure unchanged
@@ -329,11 +326,11 @@ draw mouse = fmap (cull . DL.toList . fst)
 
   for_ screenCoords $ \(x, y) ->
     for_ (mapGeometry x y) $ \f ->
-      emit ((x, y) ^. tileScreen) f
+      emit ((x, y) ^. centerTileScreen) f
 
   for_ screenCoords $ \(x, y) ->
     for_ (mapDoodads x y) $ \f ->
-      emit ((x, y) ^. tileScreen) f
+      emit ((x, y) ^. centerTileScreen) f
 
   void . efor aliveEnts $ do
     p  <- query pos
@@ -352,11 +349,11 @@ draw mouse = fmap (cull . DL.toList . fst)
 
     -- debug draw
     ( do
-      Goal g <- query pathing
+      Path g <- query pathing
       Unit <- query unitType
       let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
-      emit (V2 0 0) $ traced ls $ path [p, g]
-      emit g $ outlined ls $ circle 5
+      emit (V2 0 0) $ traced ls $ path $ p : g
+      emit (last g) $ outlined ls $ circle 5
       ) <|> pure ()
 
     ( do

@@ -18,7 +18,7 @@ tileHeight :: Num t => t
 tileHeight = 32
 
 
-getTileCrop :: Tileset -> Word32 -> Element
+getTileCrop :: Tileset -> Word32 -> Form
 getTileCrop ts = \gid ->
   let g      = fromIntegral $ gid - tsInitialGid ts
       img    = head $ tsImages ts
@@ -28,13 +28,17 @@ getTileCrop ts = \gid ->
                     (g `div` stride * tileHeight)
                     tileWidth
                     tileHeight
-   in croppedImage crop $ "maps/" <> fs
+   -- TODO(sandy): probably smarter to do this shifting later, when we draw it
+   in move (negate $ V2 halfTileWidth halfTileHeight)
+    . toForm
+    . croppedImage crop
+    $ "maps/" <> fs
 
 
 drawSquare :: Layer -> [Tileset] -> Int -> Int -> Maybe Form
 drawSquare (Layer {..}) ts = \x y ->
   M.lookup (x, y) layerData <&> \(tileGid -> gid) ->
-    toForm $ getTileCrop (getTilesetForGid ts gid) gid
+    getTileCrop (getTilesetForGid ts gid) gid
 drawSquare _ _ = error "terrible layer choice"
 
 
