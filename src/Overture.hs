@@ -21,14 +21,31 @@ import           Control.Lens hiding (without)
 import           Control.Monad.State.Class (get, gets, put, modify)
 import           Control.Monad.State.Strict (runState)
 import           Control.Monad.Trans.Class (lift)
-import           Data.Ecstasy
+import qualified Data.Ecstasy as E
+import           Data.Ecstasy hiding (newEntity)
 import           Data.Ecstasy.Internal (surgery)
+import qualified Data.Ecstasy.Types as E
+import qualified Data.IntMap.Strict as IM
 import           Game.Sequoia hiding (form)
 import           Game.Sequoia.Utils (showTrace)
 import           Game.Sequoia.Window (MouseButton (..))
 import           Linear (norm, normalize, (*^), (^*), quadrance, M22)
 import qualified QuadTree.QuadTree as QT
 import           Types
+
+
+unitScript :: Ent -> Task a -> Task ()
+unitScript ent f = fix $ \loop -> do
+  z <- lift . runQueryT ent $ query isAlive
+  for_ z . const $ do
+    void f
+    loop
+
+
+newEntity :: EntWorld  'FieldOf
+newEntity = E.newEntity
+  { isAlive = Just ()
+  }
 
 
 canonicalizeV2 :: V2 -> V2 -> (V2, V2)
@@ -67,6 +84,12 @@ buttonLeft = ButtonExtra 0
 
 buttonRight :: MouseButton
 buttonRight = ButtonExtra 2
+
+
+aliveEnts :: Monad m => SystemT EntWorld m [Ent]
+aliveEnts = do
+  w <- fmap snd $ E.SystemT get
+  pure . fmap E.Ent . IM.keys $ isAlive w
 
 
 fi :: (Num b, Integral a) => a -> b

@@ -19,8 +19,10 @@ import qualified QuadTree.QuadTree as QT
 
 screenRect :: (V2, V2)
 screenRect =
-    ( V2 (-buffer) (-buffer)
-    , V2 (gameWidth + buffer) (gameHeight + buffer)
+    ( V2 (-buffer)
+         (-buffer)
+    , V2 (gameWidth + buffer)
+         (gameHeight + buffer)
     )
   where
     buffer = 64
@@ -30,7 +32,7 @@ acquireTask :: Ent -> Task ()
 acquireTask ent = do
   let refreshRate  = 0.25
       debounceRate = 3
-  fix $ \loop -> do
+  unitScript ent $ do
     wait refreshRate
     stuff <- lift . runQueryT ent
                   $ (,,,) <$> query pos
@@ -53,7 +55,6 @@ acquireTask ent = do
           , pathing = bool Unset (Set $ Goal acqPos) $ norm dir > _aRange att
           }
         wait debounceRate
-      loop
 
 
 separateTask :: Task ()
@@ -94,14 +95,9 @@ separateTask = do
 
 initialize :: Game ()
 initialize = do
-  let Map _
-          _
-          grid
-          _
-          _ = maps M.! "hoth"
+  grid <- gets $ mapCollision . _lsMap
 
-
-  for_ [0 .. 0] $ \i -> do
+  for_ [0 .. 10] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
     ent <- createEntity newEntity
       { pos      = Just $ V2 (50 + i * 10 + bool 0 400 mine) (50 + i * 10)
@@ -114,6 +110,7 @@ initialize = do
       , unitType = Just Unit
       , hp       = Just $ Limit 100 100
       , actions  = Just [attackAction, stopAction]
+      , moveType = Just GroundMovement
       }
     start $ acquireTask ent
 
@@ -127,6 +124,7 @@ initialize = do
     , unitType = Just Unit
     , hp       = Just $ Limit 100 100
     , actions  = Just [psiStormAction]
+    , moveType = Just GroundMovement
     }
 
   let Just pf = showTrace $ grid (17, 4) (4, 2)
@@ -157,9 +155,9 @@ moveTowards dt g = do
 
 updateAttacks :: Time -> Game ()
 updateAttacks dt = do
-  entPos <- fmap M.fromList . efor allEnts $ (,) <$> queryEnt <*> query pos
+  entPos <- fmap M.fromList . efor aliveEnts $ (,) <$> queryEnt <*> query pos
 
-  tasks <- fmap catMaybes . eover allEnts $ do
+  tasks <- fmap catMaybes . eover aliveEnts $ do
     e <- queryEnt
     p <- query pos
     a <- query attack
@@ -190,7 +188,7 @@ update dt = do
   updateAttacks dt
 
   -- death to infidels
-  emap allEnts $ do
+  emap aliveEnts $ do
     Unit <- query unitType
     Limit health _ <- query hp
 
@@ -199,8 +197,8 @@ update dt = do
               else unchanged
 
   -- do walking
-  emap allEnts $ do
-    Goal g <- query pathing
+  emap aliveEnts $ do
+    Goal g           <- query pathing
     (notThereYet, p) <- moveTowards dt g
 
     let shouldStop =
@@ -270,7 +268,7 @@ playerNotWaiting mouse kb = do
           (tl, br) = canonicalizeV2 p1 p2
 
       -- TODO(sandy): can we use "getUnitsInSquare" instead?
-      emap allEnts $ do
+      emap aliveEnts $ do
         p    <- query pos
         o    <- query owner
         Unit <- query unitType
@@ -285,13 +283,13 @@ playerNotWaiting mouse kb = do
           }
 
   when (mPress mouse buttonRight) $ do
-    emap allEnts $ do
+    emap aliveEnts $ do
       with selected
       pure unchanged
         { pathing = Set $ Goal $ mPos mouse
         }
 
-  allSel <- efor allEnts $ do
+  allSel <- efor aliveEnts $ do
     with selected
     (,) <$> queryEnt
         <*> query actions
@@ -321,28 +319,23 @@ draw :: Mouse -> Game [Form]
 draw mouse = fmap (cull . DL.toList . fst)
            . surgery runWriterT
            $ do
+  Map {..} <- gets _lsMap
+
   let emit a b = tell $ DL.singleton (a, b)
-
-  let Map drawGround
-          drawDoodads
-          _
-          mapWidth
-          mapHeight = maps M.! "hoth"
-
       screenCoords = do
         x <- [0..mapWidth]
         y <- [0..mapHeight]
         pure (x, y)
 
   for_ screenCoords $ \(x, y) ->
-    for_ (drawGround x y) $ \f ->
+    for_ (mapGeometry x y) $ \f ->
       emit ((x, y) ^. tileScreen) f
 
   for_ screenCoords $ \(x, y) ->
-    for_ (drawDoodads x y) $ \f ->
+    for_ (mapDoodads x y) $ \f ->
       emit ((x, y) ^. tileScreen) f
 
-  void . efor allEnts $ do
+  void . efor aliveEnts $ do
     p  <- query pos
     z  <- queryFlag selected
     o  <- queryDef neutralPlayer owner
@@ -374,7 +367,7 @@ draw mouse = fmap (cull . DL.toList . fst)
       emit p $ traced' (rgba 0.4 0.4 0.4 0.3) $ circle $ acq
       ) <|> pure ()
 
-  void . efor allEnts $ do
+  void . efor aliveEnts $ do
     p <- query pos
     g <- query gfx
     emit p g
@@ -401,6 +394,7 @@ main = play config (const $ run realState initialize player update draw) pure
           , _lsPlayer     = mePlayer
           , _lsTasks      = []
           , _lsTargetType = Nothing
-          , _lsDynamic = mkQuadTree (8, 8) (V2 800 600)
+          , _lsDynamic    = mkQuadTree (8, 8) (V2 800 600)
+          , _lsMap        = maps M.! "hoth"
           }
 

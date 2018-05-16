@@ -56,6 +56,7 @@ data LocalState = LocalState
   , _lsTasks      :: ![Task ()]
   , _lsTargetType :: !(Maybe (TargetType (Using Ability)))
   , _lsDynamic    :: !(QuadTree Ent Double)
+  , _lsMap        :: !Map
   }
 
 
@@ -95,6 +96,7 @@ data Action = Action
 
 data Nav
   = Goal !V2
+  | Path ![V2]
 
 
 data TargetType a
@@ -111,12 +113,18 @@ data Using a = Using
   deriving (Functor)
 
 data Target
-  = TargetGround V2
-  | TargetUnit Ent
+  = TargetUnit Ent
+  | TargetGround V2
 
 data UnitType
   = Unit
   | Missile
+  deriving (Eq, Ord, Show, Bounded, Enum)
+
+data MovementType
+  = GroundMovement
+  | AirMovement
+  deriving (Eq, Ord, Show, Bounded, Enum)
 
 data Player = Player
   { pColor :: !Color
@@ -137,10 +145,12 @@ data EntWorld f = World
   , entSize  :: !(Field f Double)
   , selected :: !(Flag f)
   , unitType :: !(Field f UnitType)
+  , moveType :: !(Field f MovementType)
   , owner    :: !(Field f Player)
   , attack   :: !(Field f Attack)
   , target   :: !(Field f Target)
   , actions  :: !(Field f [Action])
+  , isAlive  :: !(Field f ())
   }
   deriving (Generic)
 
