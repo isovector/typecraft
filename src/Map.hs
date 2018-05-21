@@ -3,6 +3,7 @@
 
 module Map where
 
+import JumpGrid
 import           Data.Graph.AStar
 import qualified Data.HashSet as HS
 import qualified Data.Map as M
@@ -54,8 +55,7 @@ parseMap :: TiledMap -> Map
 parseMap TiledMap{..} =
     Map (drawSquare ground ts)
         (drawSquare doodads ts)
-        (NavMesh (checkLayer collision)
-               $ makeGrid mapWidth mapHeight collision)
+        (NavMesh (isOpenTile grid) $ findPath grid)
         mapWidth
         mapHeight
   where
@@ -64,6 +64,7 @@ parseMap TiledMap{..} =
     ground    = getLayer "ground"
     doodads   = getLayer "doodads"
     collision = getLayer "collision"
+    grid = makeGrid2 mapWidth mapHeight collision
     ts = orderTilesets mapTilesets
 
 
@@ -91,6 +92,13 @@ makeGrid w h l = \src dst ->
       pure (x', y')
 
     distance (ax, ay) (bx, by) = quadrance $ V2 ax ay - V2 bx by
+
+
+makeGrid2 :: Int -> Int -> Layer -> JumpGrid
+makeGrid2 w h l = foldl' f (make (w, h)) $ M.toList $ layerData l
+  where
+    f j (xy, _) = changeArea False xy xy j
+
 
 checkLayer :: Layer -> (Int, Int) -> Bool
 checkLayer l xy = maybe False (const True) $  M.lookup xy $ layerData l

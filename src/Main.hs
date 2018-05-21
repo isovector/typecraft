@@ -339,7 +339,7 @@ draw mouse = fmap (cull . DL.toList . fst)
 
     -- debug draw
     ( do
-      Path g <- query pathing
+      Path (g@(_:_)) <- query pathing
       Unit <- query unitType
       let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
       emit (V2 0 0) $ traced ls $ path $ p : g
