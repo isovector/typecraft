@@ -4,6 +4,7 @@
 
 module Main where
 
+import           Behavior
 import           Client
 import           Control.Monad.Trans.Writer (WriterT (..))
 import           Control.Monad.Writer.Class (tell)
@@ -127,17 +128,6 @@ initialize = do
 
   start separateTask
 
-
-moveTowards :: Time -> V2 -> Query (Bool, V2)
-moveTowards dt g = do
-  p <- query pos
-  s <- query speed
-
-  let dir = g - p
-      dist = norm dir
-      dx = s * dt
-
-  pure (dx < dist, p + dx *^ normalize dir)
 
 
 updateAttacks :: Time -> Game ()

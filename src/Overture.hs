@@ -205,13 +205,6 @@ centerTileScreen = iso ((+ center) . toScreen) (fromScreen . (subtract center))
       , round $ (y / halfTileHeight - x / halfTileWidth) / 2
       )
 
-findPath :: MonadState LocalState m => V2 -> V2 -> m (Maybe [V2])
-findPath src dst = do
-  pathFind <- gets $ mapCollision . _lsMap
-  pure $ fmap (view centerTileScreen)
-     <$> pathFind (src ^. from centerTileScreen)
-                  (dst ^. from centerTileScreen)
-
 halfTileWidth :: Fractional a => a
 halfTileWidth = 64 / 2
 

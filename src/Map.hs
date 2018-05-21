@@ -54,7 +54,8 @@ parseMap :: TiledMap -> Map
 parseMap TiledMap{..} =
     Map (drawSquare ground ts)
         (drawSquare doodads ts)
-        (makeGrid mapWidth mapHeight collision)
+        (NavMesh (checkLayer collision)
+               $ makeGrid mapWidth mapHeight collision)
         mapWidth
         mapHeight
   where
@@ -86,11 +87,13 @@ makeGrid w h l = \src dst ->
       guard $ y' >= 0
       guard $ x' < w
       guard $ y' < h
-      guard $ not $ look x y
+      guard $ not $ checkLayer l (x, y)
       pure (x', y')
 
     distance (ax, ay) (bx, by) = quadrance $ V2 ax ay - V2 bx by
-    look x y = maybe False (const True) $  M.lookup (x, y) $ layerData l
+
+checkLayer :: Layer -> (Int, Int) -> Bool
+checkLayer l xy = maybe False (const True) $  M.lookup xy $ layerData l
 
 
 maps :: M.Map String Map

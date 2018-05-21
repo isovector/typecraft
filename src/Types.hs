@@ -24,10 +24,16 @@ import Game.Sequoia.Window (MouseButton (..))
 import QuadTree.QuadTree (QuadTree)
 
 
+data NavMesh = NavMesh
+  { nmTest :: (Int, Int) -> Bool
+  , nmFind :: (Int, Int) -> (Int, Int) -> Maybe [(Int, Int)]
+  }
+
+
 data Map = Map
   { mapGeometry  :: Int -> Int -> Maybe Form
   , mapDoodads   :: Int -> Int -> Maybe Form
-  , mapCollision :: (Int, Int) -> (Int, Int) -> Maybe [(Int, Int)]
+  , mapNavMesh   :: NavMesh
   , mapWidth     :: Int
   , mapHeight    :: Int
   }
