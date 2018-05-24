@@ -126,6 +126,14 @@ initialize = do
     , moveType = Just GroundMovement
     }
 
+  void $ createEntity newEntity
+    { pos      = Just $ V2 0 0
+    , owner    = Just mePlayer
+    , unitType = Just Building
+    , hp       = Just $ Limit 100 100
+    , gridSize = Just (2, 2)
+    }
+
   start separateTask
 
 
@@ -328,13 +336,22 @@ draw mouse = fmap (cull . DL.toList . fst)
     o  <- queryDef neutralPlayer owner
     ut <- query unitType
     sz <- queryDef 10 entSize
+    (gw, gh) <- queryDef (0, 0) gridSize
 
     let col = pColor o
     emit p $ group
       [ boolMonoid z $ traced' (rgb 0 1 0) $ circle $ sz + 5
       , case ut of
-          Unit    -> filled col $ circle sz
-          Missile -> filled (rgb 0 0 0) $ circle 2
+          Unit     -> filled col $ circle sz
+          Missile  -> filled (rgb 0 0 0) $ circle 2
+          Building -> move (V2 0 (-halfTileHeight))
+                    . filled (rgba 1 0 0 0.5)
+                    $ polygon
+                      [ (0,  0)  ^. centerTileScreen
+                      , (gw, 0)  ^. centerTileScreen
+                      , (gw, gh) ^. centerTileScreen
+                      , (0,  gh) ^. centerTileScreen
+                      ]
       ]
 
     -- debug draw

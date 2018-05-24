@@ -125,6 +125,7 @@ data Target
 data UnitType
   = Unit
   | Missile
+  | Building
   deriving (Eq, Ord, Show, Bounded, Enum)
 
 data MovementType
@@ -149,6 +150,7 @@ data EntWorld f = World
   , pathing  :: !(Field f Nav)
   , speed    :: !(Field f Double)
   , entSize  :: !(Field f Double)
+  , gridSize :: !(Field f (Int, Int))
   , selected :: !(Flag f)
   , unitType :: !(Field f UnitType)
   , moveType :: !(Field f MovementType)
