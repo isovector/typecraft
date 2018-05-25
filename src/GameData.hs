@@ -27,30 +27,8 @@ gunAttackData = Attack
   }
 
 
-attackAction :: Action
-attackAction = Action
-  { _acName   = "Attack"
-  , _acHotkey = Just AKey
-  , _acTType  = TargetTypeUnit ()
-  , _acTask   = \e t -> lift $ setEntity e unchanged { target = Set t }
-  }
-
-
-stopAction :: Action
-stopAction = Action
-  { _acName   = "Stop"
-  , _acHotkey = Just SKey
-  , _acTType  = TargetTypeInstant ()
-  , _acTask   = \e _ ->
-      lift $ setEntity e unchanged
-        { target  = Unset
-        , pathing = Unset
-        }
-  }
-
-
 psiStormAction :: Action
-psiStormAction = Action
+psiStormAction = AbilityAction $ AbilityData
   { _acName   = "Psi Storm"
   , _acHotkey = Just TKey
   , _acTType  = TargetTypeGround ()

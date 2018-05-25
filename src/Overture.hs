@@ -34,6 +34,10 @@ import qualified QuadTree.QuadTree as QT
 import           Types
 
 
+getOrder :: Order -> Action
+getOrder (Ordered a) = a
+getOrder (Implied a) = a
+
 
 unitScript :: Ent -> Task a -> Task ()
 unitScript ent f = fix $ \loop -> do

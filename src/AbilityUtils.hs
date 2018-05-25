@@ -56,7 +56,7 @@ missile proto fx attacker t = do
     (Just pos0, Just tpos) -> do
       ment <- lift $ createEntity proto
         { pos = Just pos0
-        , pathing = Just $ Path [tpos]
+        , pathing = Just [tpos]
         }
       waitUntil $ do
         me <- getEntity ment

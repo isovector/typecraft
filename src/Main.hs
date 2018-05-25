@@ -30,32 +30,32 @@ screenRect =
 
 
 acquireTask :: Ent -> Task ()
-acquireTask ent = do
-  let refreshRate  = 0.25
-      debounceRate = 3
-  unitScript ent $ do
-    wait refreshRate
-    stuff <- lift . runQueryT ent
-                  $ (,,,) <$> query pos
-                          <*> query acqRange
-                          <*> query attack
-                          <*> query owner
-    for_ stuff $ \(p, acq, att, o) -> do
-      badGuys <- lift $ efor (fmap fst <$> getUnitsInRange p acq) $ do
-        o' <- query owner
-        guard $ isEnemy o o'
-        (,) <$> queryEnt
-            <*> query pos
-      let bads = sortBy (comparing $ quadrance . (p - ) . snd) badGuys
+acquireTask ent = pure () -- do
+  -- let refreshRate  = 0.25
+  --     debounceRate = 3
+  -- unitScript ent $ do
+  --   wait refreshRate
+  --   stuff <- lift . runQueryT ent
+  --                 $ (,,,) <$> query pos
+  --                         <*> query acqRange
+  --                         <*> query attack
+  --                         <*> query owner
+  --   for_ stuff $ \(p, acq, att, o) -> do
+  --     badGuys <- lift $ efor (fmap fst <$> getUnitsInRange p acq) $ do
+  --       o' <- query owner
+  --       guard $ isEnemy o o'
+  --       (,) <$> queryEnt
+  --           <*> query pos
+  --     let bads = sortBy (comparing $ quadrance . (p - ) . snd) badGuys
 
-      for_ (listToMaybe bads) $ \(t, tp) -> do
-        let dir = p - tp
-            acqPos = (normalize dir ^* _aRange att) + tp
-        lift $ setEntity ent unchanged
-          { target = Set $ TargetUnit t
-          , pathing = bool Unset (Set $ Goal acqPos) $ norm dir > _aRange att
-          }
-        wait debounceRate
+  --     for_ (listToMaybe bads) $ \(t, tp) -> do
+  --       let dir = p - tp
+  --           acqPos = (normalize dir ^* _aRange att) + tp
+  --       lift $ setEntity ent unchanged
+  --         { target = Set $ TargetUnit t
+  --         , pathing = bool Unset (Set $ Goal acqPos) $ norm dir > _aRange att
+  --         }
+  --       wait debounceRate
 
 
 separateTask :: Task ()
@@ -108,7 +108,7 @@ initialize = do
       , owner    = Just $ bool neutralPlayer mePlayer mine
       , unitType = Just Unit
       , hp       = Just $ Limit 100 100
-      , actions  = Just [attackAction, stopAction]
+      , actions  = Just []
       , moveType = Just GroundMovement
       }
     start $ acquireTask ent
@@ -181,31 +181,6 @@ update dt = do
               then delEntity
               else unchanged
 
-  -- run pathfinding
-  emap aliveEnts $ do
-    p <- query pos
-    Goal g <- query pathing
-
-    thepath <- findPath p g
-    pure unchanged
-      { pathing = fmap Path $ maybeToUpdate thepath
-      }
-
-  -- do walking
-  emap aliveEnts $ do
-    Path (g:gs)      <- query pathing
-    (notThereYet, p) <- moveTowards dt g
-
-    let shouldStop =
-          case notThereYet of
-            True  -> Keep
-            False -> bool (Set $ Path gs) Unset $ null gs
-
-
-    pure unchanged
-      { pos = Set p
-      , pathing = shouldStop
-      }
 
 
 player :: Mouse -> Keyboard -> Game ()
@@ -281,13 +256,13 @@ playerNotWaiting mouse kb = do
     emap aliveEnts $ do
       with selected
       pure unchanged
-        { pathing = Set $ Goal $ mPos mouse
+        { order = Set . Ordered . MoveAction $ mPos mouse
         }
 
   allSel <- efor aliveEnts $ do
     with selected
     (,) <$> queryEnt
-        <*> query actions
+        <*> (fmap (\(AbilityAction a) -> a) <$> query actions)
 
   z <- for (listToMaybe allSel) $ \(sel, acts) -> do
     for acts $ \act -> do
@@ -356,7 +331,7 @@ draw mouse = fmap (cull . DL.toList . fst)
 
     -- debug draw
     ( do
-      Path g <- query pathing
+      g <- query pathing
       Unit <- query unitType
       let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
       emit (V2 0 0) $ traced ls $ path $ p : g

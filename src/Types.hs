@@ -24,6 +24,11 @@ import Game.Sequoia.Window (MouseButton (..))
 import QuadTree.QuadTree (QuadTree)
 
 
+data Order
+  = Ordered Action
+  | Implied Action
+
+
 data NavMesh = NavMesh
   { nmTest :: (Int, Int) -> Bool
   , nmFind :: (Int, Int) -> (Int, Int) -> Maybe [(Int, Int)]
@@ -91,18 +96,21 @@ type Proto = EntWorld 'FieldOf
 type Ability = Ent -> Target -> Task ()
 type DamageHandler = V2 -> Target -> Game ()
 
+data Action
+  = MoveAction V2
+  | AttackAction Ent
+  -- | AttackMove V2
+  -- | FollowAction Ent
+  | StopAction
+  | AbilityAction AbilityData
 
-data Action = Action
+
+data AbilityData = AbilityData
   { _acName   :: !String
   , _acHotkey :: !(Maybe Key)
   , _acTType  :: !(TargetType ())
   , _acTask   :: !Ability
   }
-
-
-data Nav
-  = Goal !V2
-  | Path ![V2]
 
 
 data TargetType a
@@ -147,7 +155,7 @@ data EntWorld f = World
   , gfx      :: !(Field f Form)
   , hp       :: !(Field f (Limit Int))
   , acqRange :: !(Field f Double)
-  , pathing  :: !(Field f Nav)
+  , pathing  :: !(Field f [V2])
   , speed    :: !(Field f Double)
   , entSize  :: !(Field f Double)
   , gridSize :: !(Field f (Int, Int))
@@ -157,6 +165,7 @@ data EntWorld f = World
   , owner    :: !(Field f Player)
   , attack   :: !(Field f Attack)
   , target   :: !(Field f Target)
+  , order    :: !(Field f Order)
   , actions  :: !(Field f [Action])
   , isAlive  :: !(Field f ())
   }

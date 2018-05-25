@@ -1,11 +1,13 @@
 {-# LANGUAGE DeriveFunctor     #-}
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 
 module Behavior where
 
 -- import Data.Functor.Foldable (hylo)
 import Overture
+import Data.Ecstasy.Internal (unQueryT)
 import qualified Data.Vector as V
 
 
@@ -18,6 +20,83 @@ biggestDude = 10
 
 sqr :: Num a => a -> a
 sqr x = x * x
+
+
+queryPath :: V2 -> Query (Maybe [V2])
+queryPath g =
+  asum
+    [ queryMaybe pathing
+    , do
+        p <- query pos
+        findPath p g
+    ]
+
+
+moveOrder :: Time -> V2 -> Query (EntWorld 'SetterOf)
+moveOrder dt t = queryPath t >>= \case
+  Just (g:gs) -> do
+    (notThereYet, p) <- moveTowards dt g
+
+    let shouldStop :: Update a -> Update a
+        shouldStop = \x ->
+          case notThereYet of
+            True  -> Keep
+            False -> bool x Unset $ null gs
+
+    pure unchanged
+      { pos     = Set p
+      , pathing = shouldStop $ Set gs
+      , order   = shouldStop Unset
+      }
+  _ -> pure unchanged
+    -- TODO(sandy): do a warning here
+    { pathing = Unset
+    , order   = Unset
+    }
+
+
+followOrder :: Time -> Ent -> Action -> Game ()
+followOrder dt e (MoveAction t) =
+  void . runQueryT e $ moveOrder dt t
+
+followOrder _ e StopAction = clearOrder e
+
+followOrder dt e (AttackAction t) = do
+  runQueryT t (queryMaybe pos) >>= \case
+    Nothing -> clearOrder e
+    Just tpos -> do
+      ent <- getEntity e
+      let unQueryT' m = unQueryT m e ent
+      ups <- unQueryT' $ do
+        p <- query pos
+        a <- query attack
+
+        -- TODO(sandy): how to do attack ground?
+        let cooldown'  = a ^. aCooldown.limVal - dt
+            refresh    = cooldown' < 0
+            rng        = a ^. aRange
+            dst        = fmap (quadrance . (p -)) tpos
+            refresh'   = refresh && maybe False (<= rng * rng) dst
+            cooldown'' = bool cooldown' (a ^. aCooldown.limMax) refresh'
+            action     = bool Nothing (Just $ _aTask a e (TargetUnit t)) refresh'
+
+        pure $ (action,) $ unchanged
+          { attack = Set $ a & aCooldown.limVal .~ cooldown''
+          }
+
+      for_ ups $ \(task, setter) -> do
+        setEntity e setter
+        for_ task start
+
+
+clearOrder :: Ent -> Game ()
+clearOrder e =
+  void . runQueryT e $
+    pure unchanged
+      { pathing = Unset
+      , order   = Unset
+      }
+
 
 
 findPath :: MonadState LocalState m => V2 -> V2 -> m (Maybe [V2])
@@ -50,10 +129,10 @@ sweep nm (sx, sy) (gx, gy) =
 shorten :: NavMesh -> [(Int, Int)] -> [(Int, Int)]
 shorten nm = id -- V.toList . hylo alg coalg . V.fromList
   where
-    alg (Leaf a)     = a
-    alg (Branch a b) = a <> b
+    _alg (Leaf a)     = a
+    _alg (Branch a b) = a <> b
 
-    coalg v = case V.length v of
+    _coalg v = case V.length v of
       0 -> Leaf V.empty
       1 -> Leaf v
       x ->
