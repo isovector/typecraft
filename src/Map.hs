@@ -75,7 +75,7 @@ makeGrid
     -> (Int, Int)
     -> Maybe [(Int, Int)]
 makeGrid w h l = \src dst ->
-    fmap (src :) $ aStar neighbors distance (distance dst) (== dst) src
+    aStar neighbors distance (distance dst) (== dst) src
   where
     neighbors (x, y) = HS.fromList $ do
       dx <- [-1, 0, 1]

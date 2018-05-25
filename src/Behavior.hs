@@ -22,33 +22,36 @@ sqr :: Num a => a -> a
 sqr x = x * x
 
 
-queryPath :: V2 -> Query (Maybe [V2])
+queryPath :: V2 -> Query [V2]
 queryPath g =
   asum
-    [ queryMaybe pathing
+    [ query pathing
     , do
         p <- query pos
-        findPath p g
+        pp <- findPath p g
+        pure $ maybe [] id pp
+    , pure []
     ]
 
 
 moveOrder :: Time -> V2 -> Query (EntWorld 'SetterOf)
 moveOrder dt t = queryPath t >>= \case
-  Just (g:gs) -> do
+  gg@(g:gs) -> do
     (notThereYet, p) <- moveTowards dt g
 
-    let shouldStop :: Update a -> Update a
-        shouldStop = \x ->
+    let shouldStop :: Update a -> Update a -> Update a
+        shouldStop = \x y ->
           case notThereYet of
-            True  -> Keep
-            False -> bool x Unset $ null gs
+            True  -> x
+            False -> bool y Unset $ null gs
 
     pure unchanged
       { pos     = Set p
-      , pathing = shouldStop $ Set gs
-      , order   = shouldStop Unset
+      , pathing = shouldStop (Set gg) (Set gs)
+      , order   = shouldStop Keep Keep
       }
-  _ -> pure unchanged
+  _ ->
+    pure unchanged
     -- TODO(sandy): do a warning here
     { pathing = Unset
     , order   = Unset
@@ -57,7 +60,7 @@ moveOrder dt t = queryPath t >>= \case
 
 followOrder :: Time -> Ent -> Action -> Game ()
 followOrder dt e (MoveAction t) =
-  void . runQueryT e $ moveOrder dt t
+  emap (anEnt e) $ moveOrder dt t
 
 followOrder _ e StopAction = clearOrder e
 
@@ -91,7 +94,7 @@ followOrder dt e (AttackAction t) = do
 
 clearOrder :: Ent -> Game ()
 clearOrder e =
-  void . runQueryT e $
+  emap (anEnt e) $
     pure unchanged
       { pathing = Unset
       , order   = Unset
@@ -180,4 +183,11 @@ moveTowards dt g = do
       dx = s * dt
 
   pure (dx < dist, p + dx *^ normalize dir)
+
+
+setOrder :: Order -> EntWorld 'SetterOf
+setOrder o = unchanged
+  { order   = Set o
+  , pathing = Unset
+  }
 

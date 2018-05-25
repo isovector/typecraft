@@ -137,40 +137,15 @@ initialize = do
   start separateTask
 
 
-
-updateAttacks :: Time -> Game ()
-updateAttacks dt = do
-  entPos <- fmap M.fromList . efor aliveEnts $ (,) <$> queryEnt <*> query pos
-
-  tasks <- fmap catMaybes . eover aliveEnts $ do
-    e <- queryEnt
-    p <- query pos
-    a <- query attack
-    t <- query target
-    let cooldown'  = a ^. aCooldown.limVal - dt
-        refresh    = cooldown' < 0
-        tpos       = case t of
-                       TargetGround v2 -> Just v2
-                       TargetUnit ent  -> M.lookup ent entPos
-        target'    = bool Unset Keep $ isJust tpos
-        rng        = a ^. aRange
-        dst        = fmap (quadrance . (p -)) tpos
-        refresh'   = refresh && maybe False (<= rng * rng) dst
-        cooldown'' = bool cooldown' (a ^. aCooldown.limMax) refresh'
-        action     = bool Nothing (Just $ _aTask a e t) refresh'
-
-    pure $ (action,) $ unchanged
-      { attack = Set $ a & aCooldown.limVal .~ cooldown''
-      , target = target'
-      }
-
-  for_ tasks start
-
-
 update :: Time -> Game ()
 update dt = do
   pumpTasks dt
-  updateAttacks dt
+
+  orders <- efor (entsWith order) $
+    (,) <$> queryEnt
+        <*> query order
+  for_ orders $ \(e, o) ->
+    followOrder dt e $ getOrder o
 
   -- death to infidels
   emap aliveEnts $ do
@@ -180,7 +155,6 @@ update dt = do
     pure $ if health <= 0
               then delEntity
               else unchanged
-
 
 
 player :: Mouse -> Keyboard -> Game ()
@@ -255,9 +229,7 @@ playerNotWaiting mouse kb = do
   when (mPress mouse buttonRight) $ do
     emap aliveEnts $ do
       with selected
-      pure unchanged
-        { order = Set . Ordered . MoveAction $ mPos mouse
-        }
+      pure . setOrder . Ordered . MoveAction $ mPos mouse
 
   allSel <- efor aliveEnts $ do
     with selected
@@ -301,10 +273,6 @@ draw mouse = fmap (cull . DL.toList . fst)
     for_ (mapGeometry x y) $ \f ->
       emit ((x, y) ^. centerTileScreen) f
 
-  for_ screenCoords $ \(x, y) ->
-    for_ (mapDoodads x y) $ \f ->
-      emit ((x, y) ^. centerTileScreen) f
-
   void . efor aliveEnts $ do
     p  <- query pos
     z  <- queryFlag selected
@@ -345,6 +313,10 @@ draw mouse = fmap (cull . DL.toList . fst)
       emit p $ traced' (rgba 0.7 0 0 0.3) $ circle $ _aRange att
       emit p $ traced' (rgba 0.4 0.4 0.4 0.3) $ circle $ acq
       ) <|> pure ()
+
+  for_ screenCoords $ \(x, y) ->
+    for_ (mapDoodads x y) $ \f ->
+      emit ((x, y) ^. centerTileScreen) f
 
   void . efor aliveEnts $ do
     p <- query pos
