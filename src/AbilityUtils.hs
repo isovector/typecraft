@@ -74,3 +74,14 @@ missileEnt sp = newEntity
   , speed    = Just sp
   }
 
+
+channel :: Time -> Game Bool -> Task Bool
+channel t f
+  | t <= 0 = pure True
+  | otherwise = do
+      dt <- await
+      continue <- lift f
+      case continue of
+        True  -> channel (t - dt) f
+        False -> pure False
+

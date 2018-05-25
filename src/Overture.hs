@@ -34,6 +34,7 @@ import qualified QuadTree.QuadTree as QT
 import           Types
 
 
+
 unitScript :: Ent -> Task a -> Task ()
 unitScript ent f = fix $ \loop -> do
   z <- lift . runQueryT ent $ query isAlive
@@ -71,6 +72,7 @@ runGame (gs, ss) m =
   let ((a, b), c) = flip runState gs $ yieldSystemT ss m
    in ((c, a), b)
 
+
 evalGame
     :: (LocalState, SystemState EntWorld Underlying)
     -> SystemT EntWorld Underlying a
@@ -86,10 +88,17 @@ buttonRight :: MouseButton
 buttonRight = ButtonExtra 2
 
 
-aliveEnts :: Monad m => SystemT EntWorld m [Ent]
-aliveEnts = do
+entsWith
+    :: Monad m
+    => (w ('WorldOf m) -> IM.IntMap a)
+    -> SystemT w m [Ent]
+entsWith sel = do
   w <- fmap snd $ E.SystemT get
-  pure . fmap E.Ent . IM.keys $ isAlive w
+  pure . fmap E.Ent $ IM.keys $ sel w
+
+
+aliveEnts :: Monad m => SystemT EntWorld m [Ent]
+aliveEnts = entsWith isAlive
 
 
 fi :: (Num b, Integral a) => a -> b
@@ -128,7 +137,6 @@ vsetPos e Unset = modify $ lsDynamic %~ \qt -> QT.remove qt e
 vsetPos _ Keep = pure ()
 
 
-
 wait :: Time -> Task ()
 wait t | t <= 0 = pure ()
        | otherwise = do
@@ -149,6 +157,7 @@ getUnitsInZone zone = do
   dyn <- gets _lsDynamic
   pure $ QT.inZone dyn zone
 
+
 getUnitsInRange :: V2 -> Double -> Game [(Ent, Double)]
 getUnitsInRange v2 rng = do
   dyn <- gets _lsDynamic
@@ -162,7 +171,6 @@ getUnitsInSquare p1 p2 = do
   dyn <- gets _lsDynamic
   let ents = QT.inRect dyn r
   pure $ fmap fst ents
-
 
 
 getUnitAtPoint :: V2 -> Game (Maybe Ent)
@@ -191,7 +199,7 @@ withinV2 p1 p2 d =
 
 
 centerTileScreen :: Iso' (Int, Int) V2
-centerTileScreen = iso ((+ center) . toScreen) (fromScreen . (subtract center))
+centerTileScreen = iso ((+ center) . toScreen) (fromScreen . subtract center)
   where
     center = V2 halfTileWidth halfTileHeight
     camera = V2 200 0
@@ -205,8 +213,10 @@ centerTileScreen = iso ((+ center) . toScreen) (fromScreen . (subtract center))
       , round $ (y / halfTileHeight - x / halfTileWidth) / 2
       )
 
+
 halfTileWidth :: Fractional a => a
 halfTileWidth = 64 / 2
+
 
 halfTileHeight :: Fractional a => a
 halfTileHeight = 32 / 2

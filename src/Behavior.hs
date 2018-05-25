@@ -4,7 +4,7 @@
 
 module Behavior where
 
-import Data.Functor.Foldable (hylo)
+-- import Data.Functor.Foldable (hylo)
 import Overture
 import qualified Data.Vector as V
 
@@ -23,9 +23,12 @@ sqr x = x * x
 findPath :: MonadState LocalState m => V2 -> V2 -> m (Maybe [V2])
 findPath src dst = do
   nm <- gets $ mapNavMesh . _lsMap
-  let thepath = nmFind nm (src ^. from centerTileScreen)
-                          (dst ^. from centerTileScreen)
-  pure $ thepath <&> fmap (view centerTileScreen) . shorten nm
+  let dst' = dst ^. from centerTileScreen
+      thepath = nmFind nm (src ^. from centerTileScreen)
+                          dst'
+  pure $ if not $ nmTest nm dst'
+     then thepath <&> fmap (view centerTileScreen) . shorten nm
+     else Nothing
 
 
 sweep :: NavMesh -> (Int, Int) -> (Int, Int) -> Bool

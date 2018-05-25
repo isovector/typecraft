@@ -80,7 +80,7 @@ separateTask = do
                  <*> queryMaybe pathing
         pure (x, unchanged)
       when (length zs == 2) $ do
-        let [(s1, g1), (s2, g2)] = zs
+        let [(s1, _g1), (s2, _g2)] = zs
             dir = normalize $ p1 - p2
             s   = s1 + s2
         lift . when (withinV2 p1 p2 s) $ do
@@ -99,9 +99,9 @@ initialize = do
   for_ [0 .. 10] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
     ent <- createEntity newEntity
-      { pos      = Just $ V2 (50 + i * 10 + bool 0 400 mine) (50 + i * 10)
+      { pos      = Just $ V2 (50 + i * 10 + bool 0 400 mine) (120 + i * 10)
       , attack   = Just gunAttackData
-      , entSize  = Just 10
+      , entSize  = Just 7
       , acqRange = Just 125
       , speed    = Just 150
       , selected = bool Nothing (Just ()) mine
