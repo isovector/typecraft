@@ -287,8 +287,7 @@ draw mouse = fmap (cull . DL.toList . fst)
       , case ut of
           Unit     -> filled col $ circle sz
           Missile  -> filled (rgb 0 0 0) $ circle 2
-          Building -> move (V2 0 (-halfTileHeight))
-                    . filled (rgba 1 0 0 0.5)
+          Building -> filled (rgba 1 0 0 0.5)
                     $ polygon
                       [ (0,  0)  ^. centerTileScreen
                       , (gw, 0)  ^. centerTileScreen

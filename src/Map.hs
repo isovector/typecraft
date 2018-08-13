@@ -10,14 +10,6 @@ import           Data.Tiled
 import           Overture hiding (distance)
 
 
-tileWidth :: Num t => t
-tileWidth = 64
-
-
-tileHeight :: Num t => t
-tileHeight = 32
-
-
 getTileCrop :: Tileset -> Word32 -> Form
 getTileCrop ts = \gid ->
   let g      = fromIntegral $ gid - tsInitialGid ts
@@ -29,7 +21,7 @@ getTileCrop ts = \gid ->
                     tileWidth
                     tileHeight
    -- TODO(sandy): probably smarter to do this shifting later, when we draw it
-   in move (negate $ V2 halfTileWidth halfTileHeight)
+   in move (negate $ V2 tileWidth tileHeight)
     . toForm
     . croppedImage crop
     $ "maps/" <> fs
@@ -78,11 +70,9 @@ makeGrid w h l = \src dst ->
     aStar neighbors distance (distance dst) (== dst) src
   where
     neighbors (x, y) = HS.fromList $ do
-      dx <- [-1, 0, 1]
-      dy <- [-1, 0, 1]
+      (dx, dy) <- [(-1, 0), (1, 0), (0, -1), (0, 1)]
       let x' = dx + x
           y' = dy + y
-      guard $ dx /= 0 || dy /= 0
       guard $ x' >= 0
       guard $ y' >= 0
       guard $ x' < w
