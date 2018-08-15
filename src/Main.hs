@@ -30,7 +30,7 @@ screenRect =
 
 
 acquireTask :: Ent -> Task ()
-acquireTask ent = pure () -- do
+acquireTask _ = pure () -- do
   -- let refreshRate  = 0.25
   --     debounceRate = 3
   -- unitScript ent $ do
@@ -62,7 +62,7 @@ separateTask :: Task ()
 separateTask = do
   dyn0 <- lift $ gets _lsDynamic
   let zones = QT.zones dyn0
-      howMany = 10 :: Int
+      howMany = 100 :: Int
 
   forever $ for_ (zip zones $ join $ repeat [0..howMany]) $ \(zone, i) -> do
     when (i == 0) $ void await
@@ -271,7 +271,7 @@ draw mouse = fmap (cull . DL.toList . fst)
 
   for_ screenCoords $ \(x, y) ->
     for_ (mapGeometry x y) $ \f ->
-      emit ((x, y) ^. centerTileScreen) f
+      emit ((x + 1, y + 1) ^. centerTileScreen) f
 
   void . efor aliveEnts $ do
     p  <- query pos
@@ -344,7 +344,7 @@ main = play config (const $ run realState initialize player update draw) pure
           , _lsPlayer     = mePlayer
           , _lsTasks      = []
           , _lsTargetType = Nothing
-          , _lsDynamic    = mkQuadTree (8, 8) (V2 800 600)
-          , _lsMap        = maps M.! "hoth"
+          , _lsDynamic    = mkQuadTree (20, 20) (V2 800 600)
+          , _lsMap        = maps M.! "rpg2k"
           }
 

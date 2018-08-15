@@ -30,8 +30,8 @@ data Order
 
 
 data NavMesh = NavMesh
-  { nmTest :: (Int, Int) -> Bool
-  , nmFind :: (Int, Int) -> (Int, Int) -> Maybe [(Int, Int)]
+  { nmIsOpen :: (Int, Int) -> Bool
+  , nmFind   :: (Int, Int) -> (Int, Int) -> Maybe [(Int, Int)]
   }
 
 

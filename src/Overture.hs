@@ -205,23 +205,21 @@ withinV2 p1 p2 d =
 centerTileScreen :: Iso' (Int, Int) V2
 centerTileScreen = iso toScreen fromScreen
   where
-    camera = V2 200 0
-
     toScreen :: (Int, Int) -> V2
     toScreen (fromIntegral -> x, fromIntegral -> y) =
-      V2 (x * tileWidth) (y * tileHeight) + camera
+      V2 (x * tileWidth) (y * tileHeight)
 
     fromScreen :: V2 -> (Int, Int)
-    fromScreen (subtract camera -> V2 x y) =
+    fromScreen (V2 x y) =
       (floor $ x / tileWidth, floor $ y / tileHeight)
 
 
 tileWidth :: Num a => a
-tileWidth = 32
+tileWidth = 16
 
 
 tileHeight :: Num a => a
-tileHeight = 32
+tileHeight = 16
 
 halfTile :: V2
 halfTile = V2 tileWidth tileHeight ^* 0.5

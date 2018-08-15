@@ -3,10 +3,8 @@
 
 module Map where
 
-import qualified Data.PathGrid as PG
-import           Data.Graph.AStar
-import qualified Data.HashSet as HS
 import qualified Data.Map as M
+import qualified Data.PathGrid as PG
 import           Data.Tiled
 import           Overture hiding (distance)
 
@@ -48,7 +46,7 @@ parseMap TiledMap{..} =
     Map (drawSquare ground ts)
         (drawSquare doodads ts)
         (buildNavMesh mapWidth mapHeight collision)
-        -- (NavMesh (checkLayer collision)
+        -- (NavMesh (isOpen collision)
         --        $ makeGrid mapWidth mapHeight collision)
         mapWidth
         mapHeight
@@ -66,43 +64,20 @@ buildNavMesh w h l =
         x <- [0..w-1]
         y <- [0..h-1]
         let p = (x, y)
-        guard $ checkLayer l p
+        guard $ not $ isOpen l p
         pure p
-      jps = foldr (\p -> PG.closeArea p p) (PG.make (w, h)) closed
-   in NavMesh (checkLayer l) (\src dst -> showTrace $ PG.findPath jps (showTrace src) (showTrace dst))
--- findPath :: JumpGrid -> Point -> Point -> Maybe [Point]
+      jps = foldr (\p -> PG.closeArea p p) (PG.make w h) closed
+   in NavMesh (isOpen l) $ PG.findPath jps
 
 
-makeGrid
-    :: Int
-    -> Int
-    -> Layer
-    -> (Int, Int)
-    -> (Int, Int)
-    -> Maybe [(Int, Int)]
-makeGrid w h l = \src dst ->
-    aStar neighbors distance (distance dst) (== dst) src
-  where
-    neighbors (x, y) = HS.fromList $ do
-      (dx, dy) <- [(-1, 0), (1, 0), (0, -1), (0, 1)]
-      let x' = dx + x
-          y' = dy + y
-      guard $ x' >= 0
-      guard $ y' >= 0
-      guard $ x' < w
-      guard $ y' < h
-      guard $ not $ checkLayer l (x, y)
-      pure (x', y')
-
-    distance (ax, ay) (bx, by) = quadrance $ V2 ax ay - V2 bx by
-
-checkLayer :: Layer -> (Int, Int) -> Bool
-checkLayer l xy = maybe False (const True) $  M.lookup xy $ layerData l
+isOpen :: Layer -> (Int, Int) -> Bool
+isOpen l xy = maybe True (const False) $  M.lookup xy $ layerData l
 
 
 maps :: M.Map String Map
 maps = M.fromList $
-  [ "hoth"
+  [ "rpg2k"
+  , "hoth"
   ]
   <&> \i -> ( i
             , parseMap . unsafePerformIO

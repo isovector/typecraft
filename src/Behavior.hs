@@ -108,7 +108,7 @@ findPath src dst = do
   let dst' = dst ^. from centerTileScreen
       thepath = nmFind nm (src ^. from centerTileScreen)
                           dst'
-  pure $ if not $ nmTest nm dst'
+  pure $ if nmIsOpen nm dst'
      then thepath <&> fmap ((+ halfTile) . view centerTileScreen) . shorten nm
      else Nothing
 
@@ -120,7 +120,7 @@ sweep nm (sx, sy) (gx, gy) =
       diff = dst - src
       dist = abs (sx - gx) + (sy - gy)
       dir  = normalize diff
-   in all (not . nmTest nm)
+   in all (nmIsOpen nm)
         [ (floor x, floor y)
         | n <- [0 .. dist]
         , let v = src + dir ^* fromIntegral n
