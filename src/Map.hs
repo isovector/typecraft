@@ -3,6 +3,7 @@
 
 module Map where
 
+import qualified Data.PathGrid as PG
 import           Data.Graph.AStar
 import qualified Data.HashSet as HS
 import qualified Data.Map as M
@@ -46,8 +47,9 @@ parseMap :: TiledMap -> Map
 parseMap TiledMap{..} =
     Map (drawSquare ground ts)
         (drawSquare doodads ts)
-        (NavMesh (checkLayer collision)
-               $ makeGrid mapWidth mapHeight collision)
+        (buildNavMesh mapWidth mapHeight collision)
+        -- (NavMesh (checkLayer collision)
+        --        $ makeGrid mapWidth mapHeight collision)
         mapWidth
         mapHeight
   where
@@ -57,6 +59,18 @@ parseMap TiledMap{..} =
     doodads   = getLayer "doodads"
     collision = getLayer "collision"
     ts = orderTilesets mapTilesets
+
+buildNavMesh :: Int -> Int -> Layer -> NavMesh
+buildNavMesh w h l =
+  let closed = do
+        x <- [0..w-1]
+        y <- [0..h-1]
+        let p = (x, y)
+        guard $ checkLayer l p
+        pure p
+      jps = foldr (\p -> PG.closeArea p p) (PG.make (w, h)) closed
+   in NavMesh (checkLayer l) (\src dst -> showTrace $ PG.findPath jps (showTrace src) (showTrace dst))
+-- findPath :: JumpGrid -> Point -> Point -> Maybe [Point]
 
 
 makeGrid

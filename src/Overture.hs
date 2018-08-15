@@ -213,7 +213,7 @@ centerTileScreen = iso toScreen fromScreen
 
     fromScreen :: V2 -> (Int, Int)
     fromScreen (subtract camera -> V2 x y) =
-      (round $ x / tileWidth, round $ y / tileHeight)
+      (floor $ x / tileWidth, floor $ y / tileHeight)
 
 
 tileWidth :: Num a => a
@@ -222,4 +222,7 @@ tileWidth = 32
 
 tileHeight :: Num a => a
 tileHeight = 32
+
+halfTile :: V2
+halfTile = V2 tileWidth tileHeight ^* 0.5
 

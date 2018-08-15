@@ -109,7 +109,7 @@ findPath src dst = do
       thepath = nmFind nm (src ^. from centerTileScreen)
                           dst'
   pure $ if not $ nmTest nm dst'
-     then thepath <&> fmap (view centerTileScreen) . shorten nm
+     then thepath <&> fmap ((+ halfTile) . view centerTileScreen) . shorten nm
      else Nothing
 
 

@@ -36,6 +36,8 @@ executable typecraft
                , frpnow
                , astar
                , htiled
+               , jps
+               , deepseq
                , lens
                , linear
                , monad-coroutine
