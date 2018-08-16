@@ -14,19 +14,30 @@ import           Linear (quadrance)
 
 
 data QuadTree k x = QuadTree
-  { qtMap   :: {-# UNPACK #-} !(Map k (V2 x))
-  , qtSpace :: {-# UNPACK #-} !(Array (Int, Int) (Set k))
-  , qtSize  :: {-# UNPACK #-} !(V2 x)
+  { qtMap     :: {-# UNPACK #-} !(Map k (V2 x))
+  , qtEntSize :: {-# UNPACK #-} !(Map k x)
+  , qtSpace   :: {-# UNPACK #-} !(Array (Int, Int) (Set k))
+  , qtSize    :: {-# UNPACK #-} !(V2 x)
   }
 
 
 mkQuadTree :: Ord k => (Int, Int) -> V2 x -> QuadTree k x
-mkQuadTree (aw, ah) size =
-  QuadTree mempty (listArray ((0, 0), (aw - 1, ah - 1)) $ repeat mempty) size
+mkQuadTree (aw, ah) =
+  QuadTree mempty
+           mempty
+           (listArray ((0, 0), (aw - 1, ah - 1)) $ repeat mempty)
 
 
 getLoc :: Ord k => QuadTree k x -> k -> Maybe (V2 x)
 getLoc QuadTree{..} k = M.lookup k qtMap
+
+
+setSize :: Ord k => QuadTree k x -> k -> x -> QuadTree k x
+setSize qt k x = qt { qtEntSize = M.insert k x $ qtEntSize qt }
+
+
+getSize :: Ord k => QuadTree k x -> k -> Maybe x
+getSize QuadTree{..} k = M.lookup k qtEntSize
 
 
 getStride :: RealFrac x => QuadTree k x -> (x, x)
@@ -54,6 +65,10 @@ remove qt@QuadTree{..} k =
           , qtSpace = qtSpace & ix pt %~ S.delete k
           }
     Nothing -> qt
+
+
+removeSize :: (RealFrac x, Ord k) => QuadTree k x -> k -> QuadTree k x
+removeSize qt@QuadTree{..} k = qt { qtEntSize = M.delete k qtEntSize }
 
 
 insert :: (RealFrac x, Ord k) => QuadTree k x -> k -> V2 x -> QuadTree k x

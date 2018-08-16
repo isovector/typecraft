@@ -73,7 +73,8 @@ run realState initialize player update draw = do
     pure $ getMouse mb oldMb mpos
 
   let world = defStorage
-              { pos = VTable vgetPos vsetPos
+              { pos     = VTable vgetPos vsetPos
+              , entSize = VTable vgetEntSize vsetEntSize
               }
       init = fst $ runGame (realState, (0, world)) initialize
 

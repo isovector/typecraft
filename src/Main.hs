@@ -62,7 +62,7 @@ separateTask :: Task ()
 separateTask = do
   dyn0 <- lift $ gets _lsDynamic
   let zones = QT.zones dyn0
-      howMany = 100 :: Int
+      howMany = 50 :: Int
 
   forever $ for_ (zip zones $ join $ repeat [0..howMany]) $ \(zone, i) -> do
     when (i == 0) $ void await

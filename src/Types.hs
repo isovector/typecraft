@@ -157,7 +157,7 @@ data EntWorld f = World
   , acqRange :: !(Field f Double)
   , pathing  :: !(Field f [V2])
   , speed    :: !(Field f Double)
-  , entSize  :: !(Field f Double)
+  , entSize  :: !(Component f 'Virtual Double)
   , gridSize :: !(Field f (Int, Int))
   , selected :: !(Flag f)
   , unitType :: !(Field f UnitType)

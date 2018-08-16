@@ -141,6 +141,18 @@ vsetPos e Unset = modify $ lsDynamic %~ \qt -> QT.remove qt e
 vsetPos _ Keep = pure ()
 
 
+vgetEntSize :: Ent -> Underlying (Maybe Double)
+vgetEntSize e = do
+  dyn <- gets _lsDynamic
+  pure $ QT.getSize dyn e
+
+
+vsetEntSize :: Ent -> Update Double -> Underlying ()
+vsetEntSize e (Set x) = modify $ lsDynamic %~ \qt -> QT.setSize qt e x
+vsetEntSize e Unset = modify $ lsDynamic %~ \qt -> QT.removeSize qt e
+vsetEntSize _ Keep = pure ()
+
+
 wait :: Time -> Task ()
 wait t | t <= 0 = pure ()
        | otherwise = do
