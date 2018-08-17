@@ -23,8 +23,51 @@ data AttackCmd = AttackCmd
   , _acRepath :: Time
   } deriving (Data)
 
-makeLenses ''AttackCmd
+data AcquireCmd = AcquireCmd
+  { _aqAttack :: AttackCmd
+  , _aqPos    :: V2
+  , _aqDist   :: Double
+  } deriving (Data)
 
+
+makeLenses ''AttackCmd
+makeLenses ''AcquireCmd
+
+instance IsInstantCommand AcquireCmd where
+  fromInstant e = do
+    Just (p, acq, o) <-
+      eon e $ (,,) <$> query pos
+                   <*> query acqRange
+                   <*> query owner
+    badGuys <- efor (fmap fst <$> getUnitsInRange p acq) $ do
+        o' <- query owner
+        guard $ isEnemy o o'
+        (,) <$> queryEnt
+            <*> query pos
+    let bads = sortBy (comparing $ quadrance . (p - ) . snd) badGuys
+    -- TODO(sandy): check to make sure you can attack this guy!
+    case listToMaybe bads of
+      Just (t, _) -> do
+        fromUnit @AttackCmd e t >>= \case
+          Success atk -> pure $ pure $ AcquireCmd atk p acq
+          _ -> pure Attempted
+
+      Nothing -> pure Attempted
+
+instance IsCommand AcquireCmd where
+  pumpCommand dt e aq@AcquireCmd{..} = do
+    Just p <- eon e $ query pos
+    case fastInRange (p - _aqPos) _aqDist of
+      True ->
+        pumpCommand dt e _aqAttack >>= pure . \case
+          Just acmd' -> Just $ aq & aqAttack .~ acmd'
+          Nothing    -> Nothing
+      False -> pure Nothing
+
+
+
+isEnemy :: Player -> Player -> Bool
+isEnemy = (/=)
 
 
 biggestDude :: Num t => t
@@ -113,7 +156,7 @@ instance IsCommand AttackCmd where
             -- needs to repath
             case (isNothing _acPath
                 || (_acRepath <= 0
-                 && not (fastInRange (fst (fromJust _acPath) - tp) rng) )) of
+                 && not (fastInRange (fst (fromJust _acPath) - tp) rng))) of
               True -> do
                 fromLocation @MoveCmd e tp >>= \case
                   Success mcmd ->

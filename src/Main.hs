@@ -30,35 +30,6 @@ screenRect =
     buffer = 64
 
 
--- acquireTask :: Ent -> Task ()
--- acquireTask ent = do
---   let refreshRate  = 0.25
---       debounceRate = 3
---   unitScript ent $ do
---     wait refreshRate
---     stuff <- lift . runQueryT ent
---                   $ (,,,) <$> query pos
---                           <*> query acqRange
---                           <*> query attack
---                           <*> query owner
---     for_ stuff $ \(p, acq, att, o) -> do
---       badGuys <- lift $ efor (fmap fst <$> getUnitsInRange p acq) $ do
---         o' <- query owner
---         guard $ isEnemy o o'
---         (,) <$> queryEnt
---             <*> query pos
---       let bads = sortBy (comparing $ quadrance . (p - ) . snd) badGuys
-
---       for_ (listToMaybe bads) $ \(t, tp) -> do
---         let dir = p - tp
---             acqPos = (normalize dir ^* _aRange att) + tp
---         lift $ setEntity ent unchanged
---           { target = Set $ TargetUnit t
---           -- , pathing = bool Unset (Set $ Goal acqPos) $ norm dir > _aRange att
---           }
---         wait debounceRate
-
-
 separateTask :: Task ()
 separateTask = do
   dyn0 <- lift $ gets _lsDynamic
@@ -108,7 +79,6 @@ initialize = do
       , hp       = Just $ Limit 100 100
       , moveType = Just GroundMovement
       }
-    -- start $ acquireTask ent
 
   fromUnit @AttackCmd (Ent 0) (Ent 1) >>= resolveAttempt (Ent 0)
   fromUnit @AttackCmd (Ent 9) (Ent 10) >>= resolveAttempt (Ent 9)
@@ -134,12 +104,29 @@ initialize = do
     }
 
   start separateTask
+  start acquireTask
+
+
+acquireTask :: Task ()
+acquireTask = forever $ do
+  es <- lift . efor aliveEnts $ do
+    with pos
+    with attacks
+    with acqRange
+    without command
+    queryEnt
+
+  lift . for_ es $ \e ->
+    fromInstant @AcquireCmd e >>= resolveAttempt e
+
+  wait 0.5
 
 
 update :: Time -> Game ()
 update dt = do
   pumpTasks dt
   updateCommands dt
+
 
   -- death to infidels
   emap aliveEnts $ do
@@ -155,9 +142,6 @@ player :: Mouse -> Keyboard -> Game ()
 player mouse kb = do
   playerNotWaiting mouse kb
 
-
-isEnemy :: Player -> Player -> Bool
-isEnemy = (/=)
 
 
 playerNotWaiting :: Mouse -> Keyboard -> Game ()
