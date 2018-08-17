@@ -160,7 +160,7 @@ instance IsCommand AttackCmd where
               True -> do
                 fromLocation @MoveCmd e tp >>= \case
                   Success mcmd ->
-                    pure . Just $ ac & acPath ?~ (tp, mcmd)
+                    pure . Just $ ac & acPath   ?~ (tp, mcmd)
                                      & acRepath .~ acRepathTime
                   _ -> pure Nothing
 
@@ -186,48 +186,6 @@ findPath src dst = do
      else Nothing
 
 
-sweep :: NavMesh -> (Int, Int) -> (Int, Int) -> Bool
-sweep nm (sx, sy) (gx, gy) =
-  let src = fmap fromIntegral $ V2 sx sy :: V2
-      dst = fmap fromIntegral $ V2 gx gy
-      diff = dst - src
-      dist = abs (sx - gx) + (sy - gy)
-      dir  = normalize diff
-   in all (nmIsOpen nm)
-        [ (floor x, floor y)
-        | n <- [0 .. dist]
-        , let v = src + dir ^* fromIntegral n
-              x = view _x v
-              y = view _y v
-        ]
-
-
-
-
-
--- doMoveCollide :: Time -> Ent -> Game ()
--- doMoveCollide dt ent = do
---   z <- runQueryT ent $ do
---     Path (p : ps) <- query pathing
---     (done, pos') <- moveTowards dt p
---     size         <- query entSize
-
---     pure (done, pos', size)
-
---   for_ z $ \(done, pos', size) -> do
---     us <- fmap (fmap fst) . getUnitsInRange pos' $ size + biggestDude
---     udata <- efor (someEnts us) $
---       (,,) <$> queryEnt
---            <*> query pos
---            <*> query entSize
---     let actualCollisions = flip filter udata $ \(e, p, s) ->
---           quadrance (pos' - p) <= sqr (size + s)
---     undefined
-
-
-
-
-
 moveTowards :: Time -> V2 -> Query (Bool, V2)
 moveTowards dt g = do
   p <- query pos
@@ -242,7 +200,7 @@ moveTowards dt g = do
 
 setOrder :: Command -> EntWorld 'SetterOf
 setOrder o = unchanged
-  { command   = Set o
+  { currentCommand   = Set o
   }
 
 

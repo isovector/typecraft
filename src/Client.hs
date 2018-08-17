@@ -6,8 +6,10 @@ module Client
   ( run
   , gameWidth
   , gameHeight
+  , loadWaiting
   ) where
 
+import           Behavior
 import           Control.FRPNow.Time (delayTime)
 import qualified Data.Set as S
 import           Game.Sequoia.Keyboard
@@ -95,4 +97,22 @@ run realState initialize player update draw = do
     pure . collage gameWidth gameHeight
          . evalGame state
          $ draw mouse
+
+
+loadWaiting :: Commander -> Game ()
+loadWaiting cmd = do
+  sel <- getSelectedEnts
+  case cmd of
+    LocationCommand (Proxy2 :: Proxy2 a V2) ->
+      modify $ lsCommandCont ?~ do
+        LocationCommand . GameCont @a $ \v2 ->
+          for_ sel $ \e -> issueLocation @a e v2
+
+    UnitCommand (Proxy2 :: Proxy2 a Ent) ->
+      modify $ lsCommandCont ?~ do
+        UnitCommand . GameCont @a $ \t ->
+          for_ sel $ \e -> issueUnit @a e t
+
+    InstantCommand (_ :: Proxy2 a ()) -> do
+      for_ sel $ issueInstant @a
 

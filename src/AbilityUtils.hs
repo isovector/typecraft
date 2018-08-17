@@ -57,12 +57,12 @@ missile proto fx attacker t = do
     (Just pos0, Just tpos) -> do
       ment <- lift $ createEntity proto
         { pos = Just pos0
-        , command = Just $ SomeCommand $ MoveCmd [tpos]
+        , currentCommand = Just $ SomeCommand $ MoveCmd [tpos]
         }
 
       waitUntil $ do
         me <- getEntity ment
-        pure . isNothing $ command me
+        pure . isNothing $ currentCommand me
 
       lift $ do
         Just pos' <- lift $ vgetPos ment

@@ -241,8 +241,8 @@ halfTile = V2 tileWidth tileHeight ^* 0.5
 pumpSomeCommand
     :: Time
     -> Ent
-    -> SomeCommand c
-    -> Game (Maybe (SomeCommand c))
+    -> Command
+    -> Game (Maybe Command)
 pumpSomeCommand dt e (SomeCommand cmd) =
   fmap (fmap SomeCommand) $ pumpCommand dt e cmd
 
@@ -251,11 +251,11 @@ updateCommands
     :: Time
     -> Game ()
 updateCommands dt = do
-  cmds <- efor allEnts $ (,) <$> queryEnt <*> query command
+  cmds <- efor allEnts $ (,) <$> queryEnt <*> query currentCommand
   for_ cmds $ \(e, cmd) -> do
     mcmd' <- pumpSomeCommand dt e cmd
     emap (anEnt e) $ pure unchanged
-      { command = maybe Unset Set mcmd'
+      { currentCommand = maybe Unset Set mcmd'
       }
 
 
@@ -276,7 +276,7 @@ resolveAttempt
     -> Game ()
 resolveAttempt e (Success cmd) = do
   emap (anEnt e) $ pure unchanged
-    { command = Set $ SomeCommand cmd }
+    { currentCommand = Set $ SomeCommand cmd }
 resolveAttempt _ Attempted = pure ()
 resolveAttempt _ (Failure err) = do
   _ <- pure $ showTrace err

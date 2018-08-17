@@ -77,7 +77,6 @@ initialize = do
       , owner    = Just $ bool neutralPlayer mePlayer mine
       , unitType = Just Unit
       , hp       = Just $ Limit 100 100
-      , moveType = Just GroundMovement
       }
 
   issueUnit @AttackCmd (Ent 0) (Ent 1)
@@ -92,7 +91,6 @@ initialize = do
     , owner    = Just mePlayer
     , unitType = Just Unit
     , hp       = Just $ Limit 100 100
-    , moveType = Just GroundMovement
     }
 
   void $ createEntity newEntity
@@ -113,7 +111,7 @@ acquireTask = forever $ do
     with pos
     with attacks
     with acqRange
-    without command
+    without currentCommand
     queryEnt
 
   lift . for_ es $ issueInstant @AcquireCmd
@@ -227,7 +225,7 @@ draw mouse = fmap (cull . DL.toList . fst)
 
     -- debug draw
     void . optional $ do
-      SomeCommand cmd <- query command
+      SomeCommand cmd <- query currentCommand
       Just (MoveCmd g@(_:_)) <- pure . listToMaybe $ cmd ^.. biplate
       Unit <- query unitType
       let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
@@ -269,10 +267,11 @@ main = play config (const $ run realState initialize player update draw) pure
            $ rgb 0 0 0
 
     realState = LocalState
-          { _lsSelBox     = Nothing
-          , _lsPlayer     = mePlayer
-          , _lsTasks      = []
-          , _lsDynamic    = mkQuadTree (20, 20) (V2 800 600)
-          , _lsMap        = maps M.! "rpg2k"
+          { _lsSelBox      = Nothing
+          , _lsPlayer      = mePlayer
+          , _lsTasks       = []
+          , _lsDynamic     = mkQuadTree (20, 20) (V2 800 600)
+          , _lsMap         = maps M.! "rpg2k"
+          , _lsCommandCont = Nothing
           }
 

@@ -1,3 +1,4 @@
+{-# LANGUAGE AllowAmbiguousTypes      #-}
 {-# LANGUAGE ConstraintKinds          #-}
 {-# LANGUAGE DeriveAnyClass           #-}
 {-# LANGUAGE DeriveFoldable           #-}
@@ -62,11 +63,12 @@ data Keyboard = Keyboard
 
 
 data LocalState = LocalState
-  { _lsSelBox     :: !(Maybe V2)
-  , _lsPlayer     :: !Player
-  , _lsTasks      :: ![Task ()]
-  , _lsDynamic    :: !(QuadTree Ent Double)
-  , _lsMap        :: !Map
+  { _lsSelBox      :: !(Maybe V2)
+  , _lsPlayer      :: !Player
+  , _lsTasks       :: ![Task ()]
+  , _lsDynamic     :: !(QuadTree Ent Double)
+  , _lsMap         :: !Map
+  , _lsCommandCont :: !(Maybe WaitingForCommand)
   }
 
 
@@ -130,22 +132,22 @@ type Flag f = Component f 'Field ()
 type Field f a = Component f 'Field a
 
 data EntWorld f = World
-  { pos            :: !(Component f 'Virtual V2)
-  , gfx            :: !(Field f Form)
-  , hp             :: !(Field f (Limit Int))
+  { gfx            :: !(Field f Form)
   , acqRange       :: !(Field f Double)
   , speed          :: !(Field f Double)
   , entSize        :: !(Component f 'Virtual Double)
   , gridSize       :: !(Field f (Int, Int))
   , selected       :: !(Flag f)
   , unitType       :: !(Field f UnitType)
-  , moveType       :: !(Field f MovementType)
   , owner          :: !(Field f Player)
   , attacks        :: !(Field f [AttackData])
-  , target         :: !(Field f Target)
   , isAlive        :: !(Field f ())
   , classification :: !(Field f Classification)
-  , command        :: !(Field f Command)
+  , commands       :: !(Field f [CommandWidget])
+
+  , pos            :: !(Component f 'Virtual V2)
+  , hp             :: !(Field f (Limit Int))
+  , currentCommand :: !(Field f Command)
   }
   deriving (Generic)
 
@@ -181,16 +183,30 @@ class IsCommand a => IsUnitCommand a where
 class Data a => IsCommand a where
   pumpCommand :: Time -> Ent -> a -> Game (Maybe a)
 
-data SomeCommand c where
+data Command where
   SomeCommand
-      :: (IsCommand a, c a)
+      :: IsCommand a
       => a
-      -> SomeCommand c
+      -> Command
 
-type Command = SomeCommand IsAnyCommand
 
-class IsAnyCommand a
-instance IsAnyCommand a
+data Commanding f where
+  LocationCommand :: IsLocationCommand a => f a V2  -> Commanding f
+  UnitCommand     :: IsUnitCommand     a => f a Ent -> Commanding f
+  InstantCommand  :: IsInstantCommand  a => f a ()  -> Commanding f
+
+data Proxy2 a b = Proxy2
+data GameCont a b = GameCont { unTag :: b -> Game () }
+
+type Commander         = Commanding Proxy2
+type WaitingForCommand = Commanding GameCont
+
+
+data CommandWidget = CommandWidget
+  { cwCommand :: Commander
+  , cwVisible :: Bool
+  , cwHotkey  :: Maybe Key
+  }
 
 
 
