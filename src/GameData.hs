@@ -27,13 +27,13 @@ gunAttackData = Attack
   }
 
 
-psiStormAction :: Action
-psiStormAction = AbilityAction $ AbilityData
-  { _acName   = "Psi Storm"
-  , _acHotkey = Just TKey
-  , _acTType  = TargetTypeGround ()
-  , _acTask   = psiStorm
-  }
+-- psiStormAction :: Action
+-- psiStormAction = AbilityAction $ AbilityData
+--   { _acName   = "Psi Storm"
+--   , _acHotkey = Just TKey
+--   , _acTType  = TargetTypeGround ()
+--   , _acTask   = psiStorm
+--   }
 
 
 psiStorm :: Ability

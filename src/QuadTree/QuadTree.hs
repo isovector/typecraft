@@ -17,23 +17,31 @@ data QuadTree k x = QuadTree
   { qtMap     :: {-# UNPACK #-} !(Map k (V2 x))
   , qtEntSize :: {-# UNPACK #-} !(Map k x)
   , qtSpace   :: {-# UNPACK #-} !(Array (Int, Int) (Set k))
+  , qtBiggest :: {-# UNPACK #-} !x
   , qtSize    :: {-# UNPACK #-} !(V2 x)
   }
 
 
-mkQuadTree :: Ord k => (Int, Int) -> V2 x -> QuadTree k x
+mkQuadTree :: (Num x, Ord k) => (Int, Int) -> V2 x -> QuadTree k x
 mkQuadTree (aw, ah) =
   QuadTree mempty
            mempty
            (listArray ((0, 0), (aw - 1, ah - 1)) $ repeat mempty)
+           0
 
 
 getLoc :: Ord k => QuadTree k x -> k -> Maybe (V2 x)
 getLoc QuadTree{..} k = M.lookup k qtMap
 
+getLocSize :: Ord k => QuadTree k x -> k -> Maybe (V2 x, x)
+getLocSize qt k = (,) <$> getLoc qt k <*> getSize qt k
 
-setSize :: Ord k => QuadTree k x -> k -> x -> QuadTree k x
-setSize qt k x = qt { qtEntSize = M.insert k x $ qtEntSize qt }
+
+setSize :: (Ord k, Ord x) => QuadTree k x -> k -> x -> QuadTree k x
+setSize qt@QuadTree{..} k x =
+  qt { qtEntSize = M.insert k x qtEntSize
+     , qtBiggest = max qtBiggest x
+     }
 
 
 getSize :: Ord k => QuadTree k x -> k -> Maybe x
@@ -108,9 +116,9 @@ inZone qt@QuadTree{..} i =
 pointInRect :: Ord x => V2 x -> (V2 x, V2 x) -> Bool
 pointInRect (V2 x y) (V2 lx ly, V2 hx hy) =
   and [ lx <= x
-      , x < hx
+      , x  <  hx
       , ly <= y
-      , y < hy
+      , y  <  hy
       ]
 
 

@@ -1,4 +1,5 @@
 {-# LANGUAGE FlexibleContexts  #-}
+{-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE RankNTypes        #-}
 
@@ -32,11 +33,6 @@ import           Game.Sequoia.Window (MouseButton (..))
 import           Linear (norm, normalize, (*^), (^*), quadrance, M22)
 import qualified QuadTree.QuadTree as QT
 import           Types
-
-
-getOrder :: Order -> Action
-getOrder (Ordered a) = a
-getOrder (Implied a) = a
 
 
 unitScript :: Ent -> Task a -> Task ()
@@ -235,4 +231,34 @@ tileHeight = 16
 
 halfTile :: V2
 halfTile = V2 tileWidth tileHeight ^* 0.5
+
+
+pumpSomeCommand
+    :: Time
+    -> Ent
+    -> SomeCommand c
+    -> Game (Maybe (SomeCommand c))
+pumpSomeCommand dt e (SomeCommand cmd) =
+  fmap (fmap SomeCommand) $ pumpCommand dt e cmd
+
+
+updateCommands
+    :: Time
+    -> Game ()
+updateCommands dt = do
+  cmds <- efor allEnts $ (,) <$> queryEnt <*> query command
+  for_ cmds $ \(e, cmd) -> do
+    mcmd' <- pumpSomeCommand dt e cmd
+    emap (anEnt e) $ pure unchanged
+      { command = maybe Unset Set mcmd'
+      }
+
+
+fromAttempt :: forall a. Typeable a => Attempt a -> a
+fromAttempt (Success a) = a
+fromAttempt _ = error $ mconcat
+  [ "fromAttempt failed (for type "
+  , show . typeRep $ Proxy @a
+  , ")"
+  ]
 

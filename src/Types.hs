@@ -1,6 +1,9 @@
+{-# LANGUAGE ConstraintKinds          #-}
 {-# LANGUAGE DeriveAnyClass           #-}
+{-# LANGUAGE DeriveFoldable           #-}
 {-# LANGUAGE DeriveFunctor            #-}
 {-# LANGUAGE DeriveGeneric            #-}
+{-# LANGUAGE DeriveTraversable        #-}
 {-# LANGUAGE StandaloneDeriving       #-}
 {-# LANGUAGE TemplateHaskell          #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
@@ -18,15 +21,12 @@ import Control.Monad.Coroutine
 import Control.Monad.Coroutine.SuspensionFunctors
 import Control.Monad.State.Strict
 import Data.Ecstasy
+import Data.Typeable
 import Game.Sequoia
 import Game.Sequoia.Keyboard
 import Game.Sequoia.Window (MouseButton (..))
 import QuadTree.QuadTree (QuadTree)
 
-
-data Order
-  = Ordered Action
-  | Implied Action
 
 
 data NavMesh = NavMesh
@@ -65,7 +65,6 @@ data LocalState = LocalState
   { _lsSelBox     :: !(Maybe V2)
   , _lsPlayer     :: !Player
   , _lsTasks      :: ![Task ()]
-  , _lsTargetType :: !(Maybe (TargetType (Using Ability)))
   , _lsDynamic    :: !(QuadTree Ent Double)
   , _lsMap        :: !Map
   }
@@ -96,35 +95,8 @@ type Proto = EntWorld 'FieldOf
 type Ability = Ent -> Target -> Task ()
 type DamageHandler = V2 -> Target -> Game ()
 
-data Action
-  = MoveAction V2
-  | AttackAction Ent
-  -- | AttackMove V2
-  -- | FollowAction Ent
-  | StopAction
-  | AbilityAction AbilityData
 
 
-data AbilityData = AbilityData
-  { _acName   :: !String
-  , _acHotkey :: !(Maybe Key)
-  , _acTType  :: !(TargetType ())
-  , _acTask   :: !Ability
-  }
-
-
-data TargetType a
-  = TargetTypeUnit    { unTargetType :: !a }
-  | TargetTypeGround  { unTargetType :: !a }
-  | TargetTypeInstant { unTargetType :: !a }
-  deriving (Functor)
-
-
-data Using a = Using
-  { _usingEnt  :: !Ent
-  , _usingWhat :: !a
-  }
-  deriving (Functor)
 
 data Target
   = TargetUnit Ent
@@ -155,7 +127,6 @@ data EntWorld f = World
   , gfx      :: !(Field f Form)
   , hp       :: !(Field f (Limit Int))
   , acqRange :: !(Field f Double)
-  , pathing  :: !(Field f [V2])
   , speed    :: !(Field f Double)
   , entSize  :: !(Component f 'Virtual Double)
   , gridSize :: !(Field f (Int, Int))
@@ -165,14 +136,35 @@ data EntWorld f = World
   , owner    :: !(Field f Player)
   , attack   :: !(Field f Attack)
   , target   :: !(Field f Target)
-  , order    :: !(Field f Order)
-  , actions  :: !(Field f [Action])
   , isAlive  :: !(Field f ())
+
+  , command  :: !(Field f Command)
   }
   deriving (Generic)
 
 
 type World = EntWorld ('WorldOf Underlying)
+
+data Attempt a
+  = Attempted
+  | Failure String
+  | Success a
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
+
+
+class IsLocationCommand a where
+  fromLocation :: Ent -> V2 -> Game (Attempt a)
+
+class IsCommand a where
+  pumpCommand :: Time -> Ent -> a -> Game (Maybe a)
+
+data SomeCommand c where
+  SomeCommand :: (Typeable a, IsCommand a, c a) => a -> SomeCommand c
+
+type Command = SomeCommand IsAnyCommand
+
+class IsAnyCommand a
+instance IsAnyCommand a
 
 
 makeLenses ''LocalState
@@ -180,4 +172,3 @@ makeLenses ''Attack
 makeLenses ''Limit
 
 makePrisms ''UnitType
-

@@ -56,11 +56,12 @@ missile proto fx attacker t = do
     (Just pos0, Just tpos) -> do
       ment <- lift $ createEntity proto
         { pos = Just pos0
-        , pathing = Just [tpos]
+        -- TODO(sandy): use a move order here?
+        -- , pathing = Just [tpos]
         }
-      waitUntil $ do
-        me <- getEntity ment
-        pure . isNothing $ pathing me
+      -- waitUntil $ do
+      --   me <- getEntity ment
+      --   pure . isNothing $ pathing me
       lift $ do
         Just pos' <- lift $ vgetPos ment
         fx pos' t

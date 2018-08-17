@@ -7,7 +7,6 @@ module Behavior where
 
 -- import Data.Functor.Foldable (hylo)
 import Overture
-import Data.Ecstasy.Internal (unQueryT)
 import qualified Data.Vector as V
 
 
@@ -22,83 +21,70 @@ sqr :: Num a => a -> a
 sqr x = x * x
 
 
-queryPath :: V2 -> Query [V2]
-queryPath g =
-  asum
-    [ query pathing
-    , do
-        p <- query pos
-        pp <- findPath p g
-        pure $ maybe [] id pp
-    , pure []
-    ]
+data MoveCmd = MoveCmd [V2]
+
+instance IsLocationCommand MoveCmd where
+  fromLocation e g = do
+    [p] <- efor (anEnt e) $ query pos
+    mpp <- findPath p g
+    pure $ case mpp of
+      Just pp -> Success $ MoveCmd pp
+      Nothing -> Attempted
+
+instance IsCommand MoveCmd where
+  pumpCommand _ _ (MoveCmd []) = pure Nothing
+  pumpCommand dt e (MoveCmd gg@(g:gs)) = do
+    [gg'] <- eover (anEnt e) $ do
+      (notThereYet, p) <- moveTowards dt g
+
+      pure . (bool gs gg notThereYet, ) $ unchanged
+        { pos = Set p
+        }
+    pure . Just $ MoveCmd gg'
 
 
-moveOrder :: Time -> V2 -> Query (EntWorld 'SetterOf)
-moveOrder dt t = queryPath t >>= \case
-  gg@(g:gs) -> do
-    (notThereYet, p) <- moveTowards dt g
-
-    let shouldStop :: Update a -> Update a -> Update a
-        shouldStop = \x y ->
-          case notThereYet of
-            True  -> x
-            False -> bool y Unset $ null gs
-
-    pure unchanged
-      { pos     = Set p
-      , pathing = shouldStop (Set gg) (Set gs)
-      , order   = shouldStop Keep Keep
-      }
-  _ ->
-    pure unchanged
-    -- TODO(sandy): do a warning here
-    { pathing = Unset
-    , order   = Unset
-    }
+-- data AttackCmd = AttackCmd
+--   { _aTarget    :: Ent
+--   , _aCooldown  :: Limit Time
+--   , _aRange     :: Double
+--   , _aTask      :: Ent -> Ent -> Task ()
+--   }
 
 
-followOrder :: Time -> Ent -> Action -> Game ()
-followOrder dt e (MoveAction t) =
-  emap (anEnt e) $ moveOrder dt t
 
-followOrder _ e StopAction = clearOrder e
+-- followOrder :: Time -> Ent -> Action -> Game ()
+-- followOrder dt e (MoveAction t) =
+--   emap (anEnt e) $ moveOrder dt t
 
-followOrder dt e (AttackAction t) = do
-  runQueryT t (queryMaybe pos) >>= \case
-    Nothing -> clearOrder e
-    Just tpos -> do
-      ent <- getEntity e
-      let unQueryT' m = unQueryT m e ent
-      ups <- unQueryT' $ do
-        p <- query pos
-        a <- query attack
+-- followOrder _ e StopAction = clearOrder e
 
-        -- TODO(sandy): how to do attack ground?
-        let cooldown'  = a ^. aCooldown.limVal - dt
-            refresh    = cooldown' < 0
-            rng        = a ^. aRange
-            dst        = fmap (quadrance . (p -)) tpos
-            refresh'   = refresh && maybe False (<= rng * rng) dst
-            cooldown'' = bool cooldown' (a ^. aCooldown.limMax) refresh'
-            action     = bool Nothing (Just $ _aTask a e (TargetUnit t)) refresh'
+-- followOrder dt e (AttackAction t) = do
+--   runQueryT t (queryMaybe pos) >>= \case
+--     Nothing -> clearOrder e
+--     Just tpos -> do
+--       ent <- getEntity e
+--       let unQueryT' m = unQueryT m e ent
+--       ups <- unQueryT' $ do
+--         p <- query pos
+--         a <- query attack
 
-        pure $ (action,) $ unchanged
-          { attack = Set $ a & aCooldown.limVal .~ cooldown''
-          }
+--         -- TODO(sandy): how to do attack ground?
+--         let cooldown'  = a ^. aCooldown.limVal - dt
+--             refresh    = cooldown' < 0
+--             rng        = a ^. aRange
+--             dst        = fmap (quadrance . (p -)) tpos
+--             refresh'   = refresh && maybe False (<= rng * rng) dst
+--             cooldown'' = bool cooldown' (a ^. aCooldown.limMax) refresh'
+--             action     = bool Nothing (Just $ _aTask a e (TargetUnit t)) refresh'
 
-      for_ ups $ \(task, setter) -> do
-        setEntity e setter
-        for_ task start
+--         pure $ (action,) $ unchanged
+--           { attack = Set $ a & aCooldown.limVal .~ cooldown''
+--           }
 
+--       for_ ups $ \(task, setter) -> do
+--         setEntity e setter
+--         for_ task start
 
-clearOrder :: Ent -> Game ()
-clearOrder e =
-  emap (anEnt e) $
-    pure unchanged
-      { pathing = Unset
-      , order   = Unset
-      }
 
 
 
@@ -185,9 +171,26 @@ moveTowards dt g = do
   pure (dx < dist, p + dx *^ normalize dir)
 
 
-setOrder :: Order -> EntWorld 'SetterOf
+setOrder :: Command -> EntWorld 'SetterOf
 setOrder o = unchanged
-  { order   = Set o
-  , pathing = Unset
+  { command   = Set o
   }
+
+resolveAttempt
+    :: (Typeable a, IsCommand a)
+    => Ent
+    -> Attempt a
+    -> Game ()
+resolveAttempt e (Success cmd) = do
+  emap (anEnt e) $ pure unchanged
+    { command = Set $ SomeCommand cmd }
+resolveAttempt _ Attempted = pure ()
+resolveAttempt _ (Failure err) = do
+  _ <- pure $ showTrace err
+  pure ()
+
+
+getSelectedEnts :: Game [Ent]
+getSelectedEnts = efor aliveEnts $
+  with selected *> queryEnt
 

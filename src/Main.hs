@@ -10,7 +10,7 @@ import           Control.Monad.Trans.Writer (WriterT (..))
 import           Control.Monad.Writer.Class (tell)
 import qualified Data.DList as DL
 import qualified Data.Map as M
-import           Game.Sequoia.Keyboard
+-- import           Game.Sequoia.Keyboard
 import           GameData
 import           Map
 import           Overture hiding (init)
@@ -29,33 +29,33 @@ screenRect =
     buffer = 64
 
 
-acquireTask :: Ent -> Task ()
-acquireTask _ = pure () -- do
-  -- let refreshRate  = 0.25
-  --     debounceRate = 3
-  -- unitScript ent $ do
-  --   wait refreshRate
-  --   stuff <- lift . runQueryT ent
-  --                 $ (,,,) <$> query pos
-  --                         <*> query acqRange
-  --                         <*> query attack
-  --                         <*> query owner
-  --   for_ stuff $ \(p, acq, att, o) -> do
-  --     badGuys <- lift $ efor (fmap fst <$> getUnitsInRange p acq) $ do
-  --       o' <- query owner
-  --       guard $ isEnemy o o'
-  --       (,) <$> queryEnt
-  --           <*> query pos
-  --     let bads = sortBy (comparing $ quadrance . (p - ) . snd) badGuys
+-- acquireTask :: Ent -> Task ()
+-- acquireTask ent = do
+--   let refreshRate  = 0.25
+--       debounceRate = 3
+--   unitScript ent $ do
+--     wait refreshRate
+--     stuff <- lift . runQueryT ent
+--                   $ (,,,) <$> query pos
+--                           <*> query acqRange
+--                           <*> query attack
+--                           <*> query owner
+--     for_ stuff $ \(p, acq, att, o) -> do
+--       badGuys <- lift $ efor (fmap fst <$> getUnitsInRange p acq) $ do
+--         o' <- query owner
+--         guard $ isEnemy o o'
+--         (,) <$> queryEnt
+--             <*> query pos
+--       let bads = sortBy (comparing $ quadrance . (p - ) . snd) badGuys
 
-  --     for_ (listToMaybe bads) $ \(t, tp) -> do
-  --       let dir = p - tp
-  --           acqPos = (normalize dir ^* _aRange att) + tp
-  --       lift $ setEntity ent unchanged
-  --         { target = Set $ TargetUnit t
-  --         , pathing = bool Unset (Set $ Goal acqPos) $ norm dir > _aRange att
-  --         }
-  --       wait debounceRate
+--       for_ (listToMaybe bads) $ \(t, tp) -> do
+--         let dir = p - tp
+--             acqPos = (normalize dir ^* _aRange att) + tp
+--         lift $ setEntity ent unchanged
+--           { target = Set $ TargetUnit t
+--           -- , pathing = bool Unset (Set $ Goal acqPos) $ norm dir > _aRange att
+--           }
+--         wait debounceRate
 
 
 separateTask :: Task ()
@@ -76,21 +76,18 @@ separateTask = do
       zs <- lift . eover (someEnts [e1, e2]) $ do
         Unit <- query unitType
         -- TODO(sandy): constant for def size
-        x <- (,) <$> queryDef 10 entSize
-                 <*> queryMaybe pathing
+        x <- queryDef 10 entSize
         pure (x, unchanged)
       when (length zs == 2) $ do
-        let [(s1, _g1), (s2, _g2)] = zs
+        let [s1, s2] = zs
             dir = normalize $ p1 - p2
             s   = s1 + s2
         lift . when (withinV2 p1 p2 s) $ do
           setEntity e1 unchanged
             { pos = Set $ p1 + dir ^* s1
-            -- , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p2 s2) g1
             }
           setEntity e2 unchanged
             { pos = Set $ p2 - dir ^* s2
-            -- , pathing = maybe Unset (\(Goal g) -> bool Keep Unset $ withinV2 g p1 s1) g2
             }
 
 
@@ -98,7 +95,7 @@ initialize :: Game ()
 initialize = do
   for_ [0 .. 10] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
-    ent <- createEntity newEntity
+    void $ createEntity newEntity
       { pos      = Just $ V2 (50 + i * 10 + bool 0 400 mine) (120 + i * 10)
       , attack   = Just gunAttackData
       , entSize  = Just 7
@@ -108,10 +105,9 @@ initialize = do
       , owner    = Just $ bool neutralPlayer mePlayer mine
       , unitType = Just Unit
       , hp       = Just $ Limit 100 100
-      , actions  = Just []
       , moveType = Just GroundMovement
       }
-    start $ acquireTask ent
+    -- start $ acquireTask ent
 
   void $ createEntity newEntity
     { pos      = Just $ V2 700 300
@@ -122,7 +118,6 @@ initialize = do
     , owner    = Just mePlayer
     , unitType = Just Unit
     , hp       = Just $ Limit 100 100
-    , actions  = Just [psiStormAction]
     , moveType = Just GroundMovement
     }
 
@@ -140,12 +135,7 @@ initialize = do
 update :: Time -> Game ()
 update dt = do
   pumpTasks dt
-
-  orders <- efor (entsWith order) $
-    (,) <$> queryEnt
-        <*> query order
-  for_ orders $ \(e, o) ->
-    followOrder dt e $ getOrder o
+  updateCommands dt
 
   -- death to infidels
   emap aliveEnts $ do
@@ -159,45 +149,15 @@ update dt = do
 
 player :: Mouse -> Keyboard -> Game ()
 player mouse kb = do
-  curTT <- gets _lsTargetType
+  playerNotWaiting mouse kb
 
-  case curTT of
-    Nothing -> playerNotWaiting mouse kb
-
-    Just tt ->  do
-      case tt of
-        TargetTypeInstant (Using ent a) -> do
-          start . a ent $ TargetUnit ent
-          unless (kDown kb LeftShiftKey) unsetTT
-        TargetTypeGround (Using ent a) ->
-          when (mPress mouse buttonLeft) $ do
-            start
-              . a ent
-              . TargetGround
-              $ mPos mouse
-            unless (kDown kb LeftShiftKey) unsetTT
-        TargetTypeUnit (Using ent a) ->
-          when (mPress mouse buttonLeft) $ do
-            msel <- getUnitAtPoint $ mPos mouse
-            for_ msel $ \sel -> do
-              start
-                . a ent
-                $ TargetUnit sel
-              unless (kDown kb LeftShiftKey) unsetTT
-
-  when (mPress mouse buttonRight) unsetTT
-
-
-unsetTT :: Game ()
-unsetTT = modify
-        $ lsTargetType .~ Nothing
 
 isEnemy :: Player -> Player -> Bool
 isEnemy = (/=)
 
 
 playerNotWaiting :: Mouse -> Keyboard -> Game ()
-playerNotWaiting mouse kb = do
+playerNotWaiting mouse _kb = do
   when (mPress mouse buttonLeft) $ do
     modify $ lsSelBox ?~ mPos mouse
 
@@ -227,27 +187,11 @@ playerNotWaiting mouse kb = do
           }
 
   when (mPress mouse buttonRight) $ do
-    emap aliveEnts $ do
-      with selected
-      pure . setOrder . Ordered . MoveAction $ mPos mouse
-
-  allSel <- efor aliveEnts $ do
-    with selected
-    (,) <$> queryEnt
-        <*> (fmap (\(AbilityAction a) -> a) <$> query actions)
-
-  z <- for (listToMaybe allSel) $ \(sel, acts) -> do
-    for acts $ \act -> do
-      for (_acHotkey act) $ \hk -> do
-        case kPress kb hk of
-          True  -> pure $ Just $ (Using sel $ _acTask act) <$ _acTType act
-          False -> pure Nothing
-  let zz = listToMaybe
-         . catMaybes
-         . fmap join
-         . catMaybes
-         $ sequence z
-  modify $ lsTargetType .~ zz
+    sel <- getSelectedEnts
+    for_ sel $ \ent -> do
+      amv <- fromLocation @MoveCmd ent
+           $ mPos mouse
+      resolveAttempt ent amv
 
   pure ()
 
@@ -298,7 +242,8 @@ draw mouse = fmap (cull . DL.toList . fst)
 
     -- debug draw
     ( do
-      g <- query pathing
+      SomeCommand cmd <- query command
+      Just (MoveCmd g) <- pure $ cast cmd
       Unit <- query unitType
       let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
       emit (V2 0 0) $ traced ls $ path $ p : g
@@ -343,7 +288,6 @@ main = play config (const $ run realState initialize player update draw) pure
           { _lsSelBox     = Nothing
           , _lsPlayer     = mePlayer
           , _lsTasks      = []
-          , _lsTargetType = Nothing
           , _lsDynamic    = mkQuadTree (20, 20) (V2 800 600)
           , _lsMap        = maps M.! "rpg2k"
           }
