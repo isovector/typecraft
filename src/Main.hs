@@ -80,8 +80,8 @@ initialize = do
       , moveType = Just GroundMovement
       }
 
-  fromUnit @AttackCmd (Ent 0) (Ent 1) >>= resolveAttempt (Ent 0)
-  fromUnit @AttackCmd (Ent 9) (Ent 10) >>= resolveAttempt (Ent 9)
+  issueUnit @AttackCmd (Ent 0) (Ent 1)
+  issueUnit @AttackCmd (Ent 9) (Ent 10)
 
   void $ createEntity newEntity
     { pos      = Just $ V2 700 300
@@ -116,8 +116,7 @@ acquireTask = forever $ do
     without command
     queryEnt
 
-  lift . for_ es $ \e ->
-    fromInstant @AcquireCmd e >>= resolveAttempt e
+  lift . for_ es $ issueInstant @AcquireCmd
 
   wait 0.5
 
@@ -176,10 +175,8 @@ playerNotWaiting mouse _kb = do
 
   when (mPress mouse buttonRight) $ do
     sel <- getSelectedEnts
-    for_ sel $ \ent -> do
-      amv <- fromLocation @MoveCmd ent
-           $ mPos mouse
-      resolveAttempt ent amv
+    for_ sel $ \ent ->
+      issueLocation @MoveCmd ent $ mPos mouse
 
   pure ()
 
@@ -237,14 +234,13 @@ draw mouse = fmap (cull . DL.toList . fst)
       emit (V2 0 0) $ traced ls $ path $ p : g
       emit (last g) $ outlined ls $ circle 5
 
---     ( do
---       SomeCommand cmd <- query command
---       Just (AttackCmd att)  <- query attack
---       acq <- query acqRange
+    void . optional $ do
+      atts <- query attacks
+      acq  <- query acqRange
 
---       emit p $ traced' (rgba 0.7 0 0 0.3) $ circle $ _aRange att
---       emit p $ traced' (rgba 0.4 0.4 0.4 0.3) $ circle $ acq
---       ) <|> pure ()
+      for_ atts $ \att ->
+        emit p $ traced' (rgba 0.7 0 0 0.3) $ circle $ _aRange att
+      emit p $ traced' (rgba 0.4 0.4 0.4 0.3) $ circle $ acq
 
   for_ screenCoords $ \(x, y) ->
     for_ (mapDoodads x y) $ \f ->

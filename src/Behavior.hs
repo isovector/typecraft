@@ -245,19 +245,6 @@ setOrder o = unchanged
   { command   = Set o
   }
 
-resolveAttempt
-    :: (Data a, IsCommand a)
-    => Ent
-    -> Attempt a
-    -> Game ()
-resolveAttempt e (Success cmd) = do
-  emap (anEnt e) $ pure unchanged
-    { command = Set $ SomeCommand cmd }
-resolveAttempt _ Attempted = pure ()
-resolveAttempt _ (Failure err) = do
-  _ <- pure $ showTrace err
-  pure ()
-
 
 getSelectedEnts :: Game [Ent]
 getSelectedEnts = efor aliveEnts $

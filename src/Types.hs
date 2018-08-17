@@ -168,22 +168,22 @@ instance Applicative Attempt where
   _ <*> Attempted = Attempted
 
 
-class IsLocationCommand a where
+class IsCommand a => IsLocationCommand a where
   fromLocation :: Ent -> V2 -> Game (Attempt a)
 
-class IsInstantCommand a where
+class IsCommand a => IsInstantCommand a where
   fromInstant :: Ent -> Game (Attempt a)
 
-class IsUnitCommand a where
+class IsCommand a => IsUnitCommand a where
   fromUnit :: Ent -> Ent -> Game (Attempt a)
 
 
-class IsCommand a where
+class Data a => IsCommand a where
   pumpCommand :: Time -> Ent -> a -> Game (Maybe a)
 
 data SomeCommand c where
   SomeCommand
-      :: (Data a, IsCommand a, c a)
+      :: (IsCommand a, c a)
       => a
       -> SomeCommand c
 

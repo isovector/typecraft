@@ -1,7 +1,8 @@
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE RankNTypes        #-}
+{-# LANGUAGE AllowAmbiguousTypes #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE NoImplicitPrelude   #-}
+{-# LANGUAGE RankNTypes          #-}
 
 module Overture
   ( module Types
@@ -256,6 +257,30 @@ updateCommands dt = do
     emap (anEnt e) $ pure unchanged
       { command = maybe Unset Set mcmd'
       }
+
+
+issueInstant :: forall a. IsInstantCommand a => Ent -> Game ()
+issueInstant e = fromInstant @a e >>= resolveAttempt e
+
+issueLocation :: forall a. IsLocationCommand a => Ent -> V2 -> Game ()
+issueLocation e v2 = fromLocation @a e v2 >>= resolveAttempt e
+
+issueUnit :: forall a. IsUnitCommand a => Ent -> Ent -> Game ()
+issueUnit e t = fromUnit @a e t >>= resolveAttempt e
+
+
+resolveAttempt
+    :: IsCommand a
+    => Ent
+    -> Attempt a
+    -> Game ()
+resolveAttempt e (Success cmd) = do
+  emap (anEnt e) $ pure unchanged
+    { command = Set $ SomeCommand cmd }
+resolveAttempt _ Attempted = pure ()
+resolveAttempt _ (Failure err) = do
+  _ <- pure $ showTrace err
+  pure ()
 
 
 fromAttempt :: forall a. Typeable a => Attempt a -> a
