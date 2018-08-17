@@ -16,10 +16,12 @@ module Overture
   , module Control.Monad.State.Class
   , module Control.Monad.Trans.Class
   , coerce
+  , biplate
   ) where
 
 import           BasePrelude hiding (group, rotate, lazy, index, uncons, loop, inRange)
 import           Control.Lens hiding (without)
+import           Data.Data.Lens (biplate)
 import           Control.Monad.State.Class (MonadState, get, gets, put, modify)
 import           Control.Monad.State.Strict (runState)
 import           Control.Monad.Trans.Class (lift)

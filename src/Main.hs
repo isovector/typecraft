@@ -247,7 +247,7 @@ draw mouse = fmap (cull . DL.toList . fst)
     -- debug draw
     ( do
       SomeCommand cmd <- query command
-      Just (MoveCmd g@(_:_)) <- pure $ cast cmd
+      Just (MoveCmd g@(_:_)) <- pure . listToMaybe $ cmd ^.. biplate
       Unit <- query unitType
       let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
       emit (V2 0 0) $ traced ls $ path $ p : g

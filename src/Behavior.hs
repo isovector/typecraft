@@ -1,8 +1,9 @@
-{-# LANGUAGE DeriveFunctor     #-}
-{-# LANGUAGE FlexibleContexts  #-}
-{-# LANGUAGE LambdaCase        #-}
-{-# LANGUAGE NoImplicitPrelude #-}
-{-# LANGUAGE TemplateHaskell   #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE DeriveFunctor      #-}
+{-# LANGUAGE FlexibleContexts   #-}
+{-# LANGUAGE LambdaCase         #-}
+{-# LANGUAGE NoImplicitPrelude  #-}
+{-# LANGUAGE TemplateHaskell    #-}
 
 module Behavior where
 
@@ -10,15 +11,17 @@ import Overture
 
 
 data MoveCmd = MoveCmd [V2]
+  deriving (Data)
 
 data StopCmd = StopCmd
+  deriving (Data)
 
 data AttackCmd = AttackCmd
   { _acIx     :: Int
   , _acTarget :: Ent
   , _acPath   :: Maybe MoveCmd
   , _acRepath :: Time
-  }
+  } deriving (Data)
 
 makeLenses ''AttackCmd
 
@@ -196,7 +199,7 @@ setOrder o = unchanged
   }
 
 resolveAttempt
-    :: (Typeable a, IsCommand a)
+    :: (Data a, IsCommand a)
     => Ent
     -> Attempt a
     -> Game ()

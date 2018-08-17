@@ -20,8 +20,8 @@ import Control.Lens (makeLenses, makePrisms)
 import Control.Monad.Coroutine
 import Control.Monad.Coroutine.SuspensionFunctors
 import Control.Monad.State.Strict
+import Data.Data
 import Data.Ecstasy
-import Data.Typeable
 import Game.Sequoia
 import Game.Sequoia.Keyboard
 import Game.Sequoia.Window (MouseButton (..))
@@ -182,7 +182,10 @@ class IsCommand a where
   pumpCommand :: Time -> Ent -> a -> Game (Maybe a)
 
 data SomeCommand c where
-  SomeCommand :: (Typeable a, IsCommand a, c a) => a -> SomeCommand c
+  SomeCommand
+      :: (Data a, IsCommand a, c a)
+      => a
+      -> SomeCommand c
 
 type Command = SomeCommand IsAnyCommand
 
@@ -196,3 +199,4 @@ makeLenses ''AttackData
 makeLenses ''Limit
 
 makePrisms ''UnitType
+
