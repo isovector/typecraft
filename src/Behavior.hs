@@ -19,7 +19,7 @@ data StopCmd = StopCmd
 data AttackCmd = AttackCmd
   { _acIx     :: Int
   , _acTarget :: Ent
-  , _acPath   :: Maybe MoveCmd
+  , _acPath   :: Maybe (V2, MoveCmd)
   , _acRepath :: Time
   } deriving (Data)
 
@@ -92,9 +92,8 @@ instance IsCommand AttackCmd where
 
         let cooldown' = a ^. aCooldown.limVal - dt
             rng       = a ^. aRange
-            dst       = quadrance $ p - tp
 
-        case dst <= rng * rng of
+        case fastInRange (p - tp) rng of
           -- if in range
           True -> do
             let refresh    = cooldown' < 0
@@ -112,20 +111,25 @@ instance IsCommand AttackCmd where
           -- not in range
           False -> do
             -- needs to repath
-            case (isNothing _acPath || _acRepath <= 0) of
+            case (isNothing _acPath
+                || (_acRepath <= 0
+                 && not (fastInRange (fst (fromJust _acPath) - tp) rng) )) of
               True -> do
                 fromLocation @MoveCmd e tp >>= \case
                   Success mcmd ->
-                    pure . Just $ ac & acPath ?~ mcmd
+                    pure . Just $ ac & acPath ?~ (tp, mcmd)
                                      & acRepath .~ acRepathTime
                   _ -> pure Nothing
 
               -- has a path
               False -> do
-                Just mcmd <- pure _acPath
+                Just (g, mcmd) <- pure _acPath
                 mcmd' <- pumpCommand dt e mcmd
-                pure . Just $ ac & acPath .~ mcmd'
+                pure . Just $ ac & acPath .~ fmap (g,) mcmd'
                                  & acRepath -~ dt
+
+fastInRange :: V2 -> Double -> Bool
+fastInRange dst rng = quadrance dst <= rng * rng
 
 
 findPath :: MonadState LocalState m => V2 -> V2 -> m (Maybe [V2])
