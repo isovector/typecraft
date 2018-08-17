@@ -4,6 +4,7 @@
 module AbilityUtils where
 
 import Overture hiding (init)
+import Behavior
 
 
 explosion :: V2 -> Time -> (Double -> Form) -> Game ()
@@ -56,12 +57,13 @@ missile proto fx attacker t = do
     (Just pos0, Just tpos) -> do
       ment <- lift $ createEntity proto
         { pos = Just pos0
-        -- TODO(sandy): use a move order here?
-        -- , pathing = Just [tpos]
+        , command = Just $ SomeCommand $ MoveCmd [tpos]
         }
-      -- waitUntil $ do
-      --   me <- getEntity ment
-      --   pure . isNothing $ pathing me
+
+      waitUntil $ do
+        me <- getEntity ment
+        pure . isNothing $ command me
+
       lift $ do
         Just pos' <- lift $ vgetPos ment
         fx pos' t
@@ -74,15 +76,4 @@ missileEnt sp = newEntity
   { unitType = Just Missile
   , speed    = Just sp
   }
-
-
-channel :: Time -> Game Bool -> Task Bool
-channel t f
-  | t <= 0 = pure True
-  | otherwise = do
-      dt <- await
-      continue <- lift f
-      case continue of
-        True  -> channel (t - dt) f
-        False -> pure False
 

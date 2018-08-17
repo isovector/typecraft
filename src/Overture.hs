@@ -15,6 +15,7 @@ module Overture
   , module Game.Sequoia.Window
   , module Control.Monad.State.Class
   , module Control.Monad.Trans.Class
+  , coerce
   ) where
 
 import           BasePrelude hiding (group, rotate, lazy, index, uncons, loop, inRange)
@@ -22,6 +23,7 @@ import           Control.Lens hiding (without)
 import           Control.Monad.State.Class (MonadState, get, gets, put, modify)
 import           Control.Monad.State.Strict (runState)
 import           Control.Monad.Trans.Class (lift)
+import           Data.Coerce
 import qualified Data.Ecstasy as E
 import           Data.Ecstasy hiding (newEntity)
 import           Data.Ecstasy.Internal (surgery)
@@ -261,4 +263,11 @@ fromAttempt _ = error $ mconcat
   , show . typeRep $ Proxy @a
   , ")"
   ]
+
+
+eon
+    :: Ent
+    -> QueryT EntWorld Underlying a
+    -> SystemT EntWorld Underlying (Maybe a)
+eon e = fmap listToMaybe . efor (anEnt e)
 

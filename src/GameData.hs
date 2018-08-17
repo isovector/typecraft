@@ -14,26 +14,18 @@ neutralPlayer :: Player
 neutralPlayer = Player $ rgb 0.25 0.55 0.95
 
 
-gunAttackData :: Attack
-gunAttackData = Attack
-  { _aCooldown  = Limit 0 0.75
-  , _aRange     = 75
-  , _aTask      = missile (missileEnt 300) $ \v2 t -> do
+gunAttackData :: AttackData
+gunAttackData = AttackData
+  { _aCooldown = Limit 0 0.75
+  , _aRange    = 75
+  , _aClass    = [Nothing]
+  , _aTask     = missile (missileEnt 300) $ \v2 t -> do
       doDamage Nothing 30 v2 t
       explosion v2 1 $ \d -> scale (d + 0.01)
                            . filled (rgba 1 0 0 $ 1 - d / 2)
                            . circle
                            $ 8 + d * 3
   }
-
-
--- psiStormAction :: Action
--- psiStormAction = AbilityAction $ AbilityData
---   { _acName   = "Psi Storm"
---   , _acHotkey = Just TKey
---   , _acTType  = TargetTypeGround ()
---   , _acTask   = psiStorm
---   }
 
 
 psiStorm :: Ability

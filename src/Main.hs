@@ -4,13 +4,14 @@
 
 module Main where
 
+-- import           Game.Sequoia.Keyboard
 import           Behavior
 import           Client
 import           Control.Monad.Trans.Writer (WriterT (..))
 import           Control.Monad.Writer.Class (tell)
 import qualified Data.DList as DL
+import           Data.Ecstasy.Types (Ent (..))
 import qualified Data.Map as M
--- import           Game.Sequoia.Keyboard
 import           GameData
 import           Map
 import           Overture hiding (init)
@@ -97,7 +98,7 @@ initialize = do
     let mine = mod (round i) 2 == (0 :: Int)
     void $ createEntity newEntity
       { pos      = Just $ V2 (50 + i * 10 + bool 0 400 mine) (120 + i * 10)
-      , attack   = Just gunAttackData
+      , attacks  = Just [gunAttackData]
       , entSize  = Just 7
       , acqRange = Just 125
       , speed    = Just 150
@@ -109,9 +110,12 @@ initialize = do
       }
     -- start $ acquireTask ent
 
+  fromUnit @AttackCmd (Ent 0) (Ent 1) >>= resolveAttempt (Ent 0)
+  fromUnit @AttackCmd (Ent 9) (Ent 10) >>= resolveAttempt (Ent 9)
+
   void $ createEntity newEntity
     { pos      = Just $ V2 700 300
-    , attack   = Just gunAttackData
+    , attacks  = Just [gunAttackData]
     , entSize  = Just 10
     , speed    = Just 100
     , selected = Just ()
@@ -243,20 +247,21 @@ draw mouse = fmap (cull . DL.toList . fst)
     -- debug draw
     ( do
       SomeCommand cmd <- query command
-      Just (MoveCmd g) <- pure $ cast cmd
+      Just (MoveCmd g@(_:_)) <- pure $ cast cmd
       Unit <- query unitType
       let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
       emit (V2 0 0) $ traced ls $ path $ p : g
       emit (last g) $ outlined ls $ circle 5
       ) <|> pure ()
 
-    ( do
-      att  <- query attack
-      acq <- query acqRange
+--     ( do
+--       SomeCommand cmd <- query command
+--       Just (AttackCmd att)  <- query attack
+--       acq <- query acqRange
 
-      emit p $ traced' (rgba 0.7 0 0 0.3) $ circle $ _aRange att
-      emit p $ traced' (rgba 0.4 0.4 0.4 0.3) $ circle $ acq
-      ) <|> pure ()
+--       emit p $ traced' (rgba 0.7 0 0 0.3) $ circle $ _aRange att
+--       emit p $ traced' (rgba 0.4 0.4 0.4 0.3) $ circle $ acq
+--       ) <|> pure ()
 
   for_ screenCoords $ \(x, y) ->
     for_ (mapDoodads x y) $ \f ->

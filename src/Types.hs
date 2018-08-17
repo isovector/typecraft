@@ -77,10 +77,11 @@ data Limit a = Limit
   deriving (Eq, Ord, Show)
 
 
-data Attack = Attack
-  { _aCooldown  :: !(Limit Time)
-  , _aRange     :: !Double
-  , _aTask      :: !(Ent -> Target -> Task ())
+data AttackData = AttackData
+  { _aCooldown :: Limit Time
+  , _aRange    :: Double
+  , _aClass    :: [Maybe Classification]
+  , _aTask     :: Ent -> Target -> Task ()
   }
 
 type Underlying = State LocalState
@@ -108,6 +109,12 @@ data UnitType
   | Building
   deriving (Eq, Ord, Show, Bounded, Enum)
 
+data Classification
+  = GroundUnit
+  | AirUnit
+  | BuildingUnit
+  deriving (Eq, Ord, Show, Bounded, Enum)
+
 data MovementType
   = GroundMovement
   | AirMovement
@@ -123,22 +130,22 @@ type Flag f = Component f 'Field ()
 type Field f a = Component f 'Field a
 
 data EntWorld f = World
-  { pos      :: !(Component f 'Virtual V2)
-  , gfx      :: !(Field f Form)
-  , hp       :: !(Field f (Limit Int))
-  , acqRange :: !(Field f Double)
-  , speed    :: !(Field f Double)
-  , entSize  :: !(Component f 'Virtual Double)
-  , gridSize :: !(Field f (Int, Int))
-  , selected :: !(Flag f)
-  , unitType :: !(Field f UnitType)
-  , moveType :: !(Field f MovementType)
-  , owner    :: !(Field f Player)
-  , attack   :: !(Field f Attack)
-  , target   :: !(Field f Target)
-  , isAlive  :: !(Field f ())
-
-  , command  :: !(Field f Command)
+  { pos            :: !(Component f 'Virtual V2)
+  , gfx            :: !(Field f Form)
+  , hp             :: !(Field f (Limit Int))
+  , acqRange       :: !(Field f Double)
+  , speed          :: !(Field f Double)
+  , entSize        :: !(Component f 'Virtual Double)
+  , gridSize       :: !(Field f (Int, Int))
+  , selected       :: !(Flag f)
+  , unitType       :: !(Field f UnitType)
+  , moveType       :: !(Field f MovementType)
+  , owner          :: !(Field f Player)
+  , attacks        :: !(Field f [AttackData])
+  , target         :: !(Field f Target)
+  , isAlive        :: !(Field f ())
+  , classification :: !(Field f Classification)
+  , command        :: !(Field f Command)
   }
   deriving (Generic)
 
@@ -151,9 +158,25 @@ data Attempt a
   | Success a
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
+instance Applicative Attempt where
+  pure = Success
+  Success f <*> Success a = Success $ f a
+  Failure e1 <*> Failure e2 = Failure $ e1 ++ "\n" ++ e2
+  Failure err <*> _ = Failure err
+  _ <*> Failure err = Failure err
+  Attempted <*> _ = Attempted
+  _ <*> Attempted = Attempted
+
 
 class IsLocationCommand a where
   fromLocation :: Ent -> V2 -> Game (Attempt a)
+
+class IsInstantCommand a where
+  fromInstant :: Ent -> Game (Attempt a)
+
+class IsUnitCommand a where
+  fromUnit :: Ent -> Ent -> Game (Attempt a)
+
 
 class IsCommand a where
   pumpCommand :: Time -> Ent -> a -> Game (Maybe a)
@@ -167,8 +190,9 @@ class IsAnyCommand a
 instance IsAnyCommand a
 
 
+
 makeLenses ''LocalState
-makeLenses ''Attack
+makeLenses ''AttackData
 makeLenses ''Limit
 
 makePrisms ''UnitType
