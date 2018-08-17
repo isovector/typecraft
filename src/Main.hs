@@ -4,7 +4,9 @@
 
 module Main where
 
--- import           Game.Sequoia.Keyboard
+import System.Random
+import Control.Monad.IO.Class
+import           AbilityUtils
 import           Behavior
 import           Client
 import           Control.Monad.Trans.Writer (WriterT (..))
@@ -92,11 +94,13 @@ initialize = do
     , owner    = Just mePlayer
     , unitType = Just Unit
     , hp       = Just $ Limit 100 100
-    , commands  = Just $ psiStormWidget : stdWidgets
+    , commands = Just $ psiStormWidget : stdWidgets
     }
 
+  let volPos = V2 300 300
   void $ createEntity newEntity
-    { pos      = Just $ V2 0 0
+    { pos      = Just volPos
+    , gfx      = Just $ scale 0.2 $ toForm $ image "assets/volcano.png"
     , owner    = Just mePlayer
     , unitType = Just Building
     , hp       = Just $ Limit 100 100
@@ -105,6 +109,47 @@ initialize = do
 
   start separateTask
   start acquireTask
+  start $ volcanoPassive $ volPos + V2 40 0
+
+
+volcanoPassive :: V2 -> Task ()
+volcanoPassive v2 = do
+  let size       = 100
+      dmg        = 100
+      flashTime  = 0.1
+      waitPeriod = 0.75
+
+  forever $ do
+    lift . explosion v2 waitPeriod
+         $ \d -> scale (d + 0.01)
+               . filled (rgba 1 0 0 $ 1 - d / 2)
+               . circle
+               $ 8 + d * 3
+    wait waitPeriod
+
+--     dx <- lift . liftIO $ randomRIO (-size, size)
+--     let pos = v2 + V2 dx 0
+--     _
+
+--   let add  = V2 size size ^* 0.5
+--       p1   = v2 - add
+--       p2   = v2 + add
+--       form = rect size size
+
+--   lift . explosion v2 (waitPeriod * cycles)
+--       . const
+--       $ filled (rgba 0 0.8 1 0.3) form
+--   for_ [0 .. cycles - 1] . const $ do
+--     wait waitPeriod
+--     lift $ do
+--       explosion v2 flashTime
+--         . const
+--         $ filled (rgb 0 0.8 1) form
+--       inRange <- getUnitsInSquare p1 p2
+--       eover (someEnts inRange)
+--         . fmap ((),)
+--         $ performDamage dmg
+
 
 
 acquireTask :: Task ()
@@ -203,7 +248,7 @@ playerNotWaiting mouse kb = do
     for acts $ \act -> do
       for (cwHotkey act) $ \hk ->
         pure $ case kPress kb hk of
-          True  -> Just $ showTrace $ cwCommand act
+          True  -> Just $ cwCommand act
           False -> Nothing
   let zz = listToMaybe
          . catMaybes

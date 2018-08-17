@@ -17,6 +17,7 @@ module Types
   , Key (..)
   ) where
 
+import System.Random
 import Control.Lens (makeLenses, makePrisms)
 import Control.Monad.Coroutine
 import Control.Monad.Coroutine.SuspensionFunctors
