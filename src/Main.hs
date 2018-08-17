@@ -77,6 +77,7 @@ initialize = do
       , owner    = Just $ bool neutralPlayer mePlayer mine
       , unitType = Just Unit
       , hp       = Just $ Limit 100 100
+      , commands  = Just stdWidgets
       }
 
   issueUnit @AttackCmd (Ent 0) (Ent 1)
@@ -91,6 +92,7 @@ initialize = do
     , owner    = Just mePlayer
     , unitType = Just Unit
     , hp       = Just $ Limit 100 100
+    , commands  = Just $ psiStormWidget : stdWidgets
     }
 
   void $ createEntity newEntity
@@ -113,9 +115,7 @@ acquireTask = forever $ do
     with acqRange
     without currentCommand
     queryEnt
-
   lift . for_ es $ issueInstant @AcquireCmd
-
   wait 0.5
 
 
@@ -123,7 +123,6 @@ update :: Time -> Game ()
 update dt = do
   pumpTasks dt
   updateCommands dt
-
 
   -- death to infidels
   emap aliveEnts $ do
@@ -137,12 +136,35 @@ update dt = do
 
 player :: Mouse -> Keyboard -> Game ()
 player mouse kb = do
-  playerNotWaiting mouse kb
+  curTT <- gets _lsCommandCont
+  case curTT of
+    Nothing -> playerNotWaiting mouse kb
+    Just tt ->  do
+      case tt of
+        InstantCommand (GameCont f) -> do
+          f ()
+          unsetTT
+        LocationCommand (GameCont f) ->
+          when (mPress mouse buttonLeft) $ do
+            f $ mPos mouse
+            unless (kDown kb LeftShiftKey) unsetTT
+        UnitCommand (GameCont f) ->
+          when (mPress mouse buttonLeft) $ do
+            msel <- getUnitAtPoint $ mPos mouse
+            for_ msel $ \sel -> do
+              f sel
+              unless (kDown kb LeftShiftKey) unsetTT
 
+  when (mPress mouse buttonRight) unsetTT
+
+
+unsetTT :: Game ()
+unsetTT = modify
+        $ lsCommandCont .~ Nothing
 
 
 playerNotWaiting :: Mouse -> Keyboard -> Game ()
-playerNotWaiting mouse _kb = do
+playerNotWaiting mouse kb = do
   when (mPress mouse buttonLeft) $ do
     modify $ lsSelBox ?~ mPos mouse
 
@@ -175,6 +197,20 @@ playerNotWaiting mouse _kb = do
     sel <- getSelectedEnts
     for_ sel $ \ent ->
       issueLocation @MoveCmd ent $ mPos mouse
+
+  allSel <- efor aliveEnts $ with selected >> query commands
+  z <- for (listToMaybe allSel) $ \acts -> do
+    for acts $ \act -> do
+      for (cwHotkey act) $ \hk ->
+        pure $ case kPress kb hk of
+          True  -> Just $ showTrace $ cwCommand act
+          False -> Nothing
+  let zz = listToMaybe
+         . catMaybes
+         . fmap join
+         . catMaybes
+         $ sequence z
+  for_ zz loadWaiting
 
   pure ()
 

@@ -8,7 +8,10 @@
 module Behavior where
 
 import Overture
+import AbilityUtils
 
+data PsiStormCmd = PsiStormCmd V2
+  deriving Data
 
 data MoveCmd = MoveCmd [V2]
   deriving (Data)
@@ -32,6 +35,38 @@ data AcquireCmd = AcquireCmd
 
 makeLenses ''AttackCmd
 makeLenses ''AcquireCmd
+
+instance IsLocationCommand PsiStormCmd where
+  fromLocation _ = pure . pure . PsiStormCmd
+
+instance IsCommand PsiStormCmd where
+  pumpCommand _ _ (PsiStormCmd v2) = do
+    start $ do
+      let size       = 100
+          dmg        = 100
+          flashTime  = 0.1
+          waitPeriod = 0.75
+          cycles     = 4
+
+      let add  = V2 size size ^* 0.5
+          p1   = v2 - add
+          p2   = v2 + add
+          form = rect size size
+
+      lift . explosion v2 (waitPeriod * cycles)
+          . const
+          $ filled (rgba 0 0.8 1 0.3) form
+      for_ [0 .. cycles - 1] . const $ do
+        wait waitPeriod
+        lift $ do
+          explosion v2 flashTime
+            . const
+            $ filled (rgb 0 0.8 1) form
+          inRange <- getUnitsInSquare p1 p2
+          eover (someEnts inRange)
+            . fmap ((),)
+            $ performDamage dmg
+    pure Nothing
 
 instance IsInstantCommand AcquireCmd where
   fromInstant e = do

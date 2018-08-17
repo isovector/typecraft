@@ -4,6 +4,7 @@ module GameData where
 
 import AbilityUtils
 import Overture
+import Behavior
 
 
 mePlayer :: Player
@@ -27,32 +28,47 @@ gunAttackData = AttackData
                            $ 8 + d * 3
   }
 
+psiStormWidget :: CommandWidget
+psiStormWidget = CommandWidget
+  { cwName = "Psi Storm"
+  , cwCommand = LocationCommand $ Proxy2 @PsiStormCmd
+  , cwVisible = True
+  , cwHotkey = Just TKey
+  }
 
-psiStorm :: Ability
-psiStorm _ (TargetUnit {}) = error "no can do"
-psiStorm _ (TargetGround v2) = do
-  let size       = 100
-      dmg        = 100
-      flashTime  = 0.1
-      waitPeriod = 0.75
-      cycles     = 4
 
-  let add  = V2 size size ^* 0.5
-      p1   = v2 - add
-      p2   = v2 + add
-      form = rect size size
+moveWidget :: CommandWidget
+moveWidget = CommandWidget
+  { cwName = "Move"
+  , cwCommand = LocationCommand $ Proxy2 @MoveCmd
+  , cwVisible = True
+  , cwHotkey = Just MKey
+  }
 
-  lift . explosion v2 (waitPeriod * cycles)
-       . const
-       $ filled (rgba 0 0.8 1 0.3) form
-  for_ [0 .. cycles - 1] . const $ do
-    wait waitPeriod
-    lift $ do
-      explosion v2 flashTime
-        . const
-        $ filled (rgb 0 0.8 1) form
-      inRange <- getUnitsInSquare p1 p2
-      eover (someEnts inRange)
-        . fmap ((),)
-        $ performDamage dmg
+attackWidget :: CommandWidget
+attackWidget = CommandWidget
+  { cwName = "Attack"
+  , cwCommand = UnitCommand $ Proxy2 @AttackCmd
+  , cwVisible = True
+  , cwHotkey = Just AKey
+  }
+
+stopWidget :: CommandWidget
+stopWidget = CommandWidget
+  { cwName = "Stop"
+  , cwCommand = InstantCommand $ Proxy2 @StopCmd
+  , cwVisible = True
+  , cwHotkey = Just SKey
+  }
+
+acquireWidget :: CommandWidget
+acquireWidget = CommandWidget
+  { cwName = "Acquire"
+  , cwCommand = InstantCommand $ Proxy2 @AcquireCmd
+  , cwVisible = False
+  , cwHotkey = Nothing
+  }
+
+stdWidgets :: [CommandWidget]
+stdWidgets = [moveWidget, stopWidget, attackWidget, acquireWidget]
 

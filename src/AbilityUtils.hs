@@ -4,7 +4,7 @@
 module AbilityUtils where
 
 import Overture hiding (init)
-import Behavior
+import {-# SOURCE #-} Behavior
 
 
 explosion :: V2 -> Time -> (Double -> Form) -> Game ()

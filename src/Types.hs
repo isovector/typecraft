@@ -195,6 +195,11 @@ data Commanding f where
   UnitCommand     :: IsUnitCommand     a => f a Ent -> Commanding f
   InstantCommand  :: IsInstantCommand  a => f a ()  -> Commanding f
 
+instance Show (Commanding f) where
+  show (LocationCommand _) = "LocationCommand"
+  show (UnitCommand _)     = "UnitCommand"
+  show (InstantCommand _)  = "InstantCommand"
+
 data Proxy2 a b = Proxy2
 data GameCont a b = GameCont { unTag :: b -> Game () }
 
@@ -203,10 +208,11 @@ type WaitingForCommand = Commanding GameCont
 
 
 data CommandWidget = CommandWidget
-  { cwCommand :: Commander
+  { cwName    :: String
+  , cwCommand :: Commander
   , cwVisible :: Bool
   , cwHotkey  :: Maybe Key
-  }
+  } deriving Show
 
 
 
