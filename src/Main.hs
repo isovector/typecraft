@@ -4,8 +4,6 @@
 
 module Main where
 
-import System.Random
-import Control.Monad.IO.Class
 import           AbilityUtils
 import           Behavior
 import           Client
@@ -19,6 +17,8 @@ import           Map
 import           Overture hiding (init)
 import           QuadTree.QuadTree (mkQuadTree)
 import qualified QuadTree.QuadTree as QT
+import Linear.Matrix
+import qualified Linear.V2
 
 
 screenRect :: (V2, V2)
@@ -100,55 +100,82 @@ initialize = do
   let volPos = V2 300 300
   void $ createEntity newEntity
     { pos      = Just volPos
-    , gfx      = Just $ scale 0.2 $ toForm $ image "assets/volcano.png"
+    , gfx      = Just $ scale 0.4 $ toForm $ image "assets/volcano.png"
     , owner    = Just mePlayer
     , unitType = Just Building
     , hp       = Just $ Limit 100 100
-    , gridSize = Just (2, 2)
+    , gridSize = Just (10, 7)
     }
 
   start separateTask
   start acquireTask
-  start $ volcanoPassive $ volPos + V2 40 0
+  start $ volcanoPassive (volPos + V2 40 0) 0.4
 
 
-volcanoPassive :: V2 -> Task ()
-volcanoPassive v2 = do
-  let size       = 100
+volcanoPassive :: V2 -> Double -> Task ()
+volcanoPassive v2 sc = do
+  let size       = 20
+      warning    = 0.2
       dmg        = 100
-      flashTime  = 0.1
       waitPeriod = 0.75
+      height     = V2 0 300
 
-  forever $ do
-    lift . explosion v2 waitPeriod
+      volpos = v2 + V2 100 0 ^* sc
+
+      rotmat θ = Linear.V2.V2 (Linear.V2.V2 (cos θ)          (sin θ))
+                              (Linear.V2.V2 (negate $ sin θ) (cos θ))
+
+  flip fix [1..] $ \f z ->  do
+    lift . explosion volpos waitPeriod
          $ \d -> scale (d + 0.01)
                . filled (rgba 1 0 0 $ 1 - d / 2)
                . circle
                $ 8 + d * 3
+
+    let dx = rotmat (fromIntegral (head z) * pi / 302 * 45) !* (V2 200 0)
+        pos = v2 + dx
+
+    lift . explosion volpos warning
+         $ \d -> move (-height ^* d)
+               . scale 0.4
+               . move (V2 (-32) (-30))
+               . toForm
+               $ image "assets/socks.png"
+
+    wait 1
+
+    lift . explosion pos 2
+         $ \d -> scale (d + 0.01)
+               . filled (rgba 0 0 0 $ 0.5 + d / 2)
+               . circle
+               $ 8 + d * 3
+
+    wait $ 2 - warning
+
+    lift . explosion pos warning
+         $ \d -> move (-height + height ^* d)
+               . scale 0.4
+               . move (V2 (-32) (-30))
+               . toForm
+               $ image "assets/socks.png"
+
+    wait warning
+
+    void . lift $ do
+      explosion pos waitPeriod
+        $ \d -> scale (d + 0.01)
+              . filled (rgba 1 0 0 $ 1 - d / 2)
+              . circle
+              $ 8 + d * 3
+
+      inRange <- fmap fst <$> getUnitsInRange pos size
+      eover (someEnts inRange)
+          . fmap ((),)
+          $ performDamage dmg
+
     wait waitPeriod
 
---     dx <- lift . liftIO $ randomRIO (-size, size)
---     let pos = v2 + V2 dx 0
---     _
-
---   let add  = V2 size size ^* 0.5
---       p1   = v2 - add
---       p2   = v2 + add
---       form = rect size size
-
---   lift . explosion v2 (waitPeriod * cycles)
---       . const
---       $ filled (rgba 0 0.8 1 0.3) form
---   for_ [0 .. cycles - 1] . const $ do
---     wait waitPeriod
---     lift $ do
---       explosion v2 flashTime
---         . const
---         $ filled (rgb 0 0.8 1) form
---       inRange <- getUnitsInSquare p1 p2
---       eover (someEnts inRange)
---         . fmap ((),)
---         $ performDamage dmg
+    f $ drop (head z `mod` 50) z
 
 
 
