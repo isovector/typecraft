@@ -13,12 +13,12 @@ import qualified Data.DList as DL
 import           Data.Ecstasy.Types (Ent (..))
 import qualified Data.Map as M
 import           GameData
+import           Linear.Matrix
+import qualified Linear.V2 as L
 import           Map
 import           Overture hiding (init)
 import           QuadTree.QuadTree (mkQuadTree)
 import qualified QuadTree.QuadTree as QT
-import Linear.Matrix
-import qualified Linear.V2
 
 
 screenRect :: (V2, V2)
@@ -122,8 +122,8 @@ volcanoPassive v2 sc = do
 
       volpos = v2 + V2 100 0 ^* sc
 
-      rotmat θ = Linear.V2.V2 (Linear.V2.V2 (cos θ)          (sin θ))
-                              (Linear.V2.V2 (negate $ sin θ) (cos θ))
+      rotmat theta = L.V2 (L.V2 (cos theta)          (sin theta))
+                          (L.V2 (negate $ sin theta) (cos theta))
 
   flip fix [1..] $ \f z ->  do
     lift . explosion volpos waitPeriod
