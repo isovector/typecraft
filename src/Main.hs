@@ -10,7 +10,7 @@ import           Client
 import           Control.Monad.Trans.Writer (WriterT (..))
 import           Control.Monad.Writer.Class (tell)
 import qualified Data.DList as DL
-import           Data.Ecstasy.Types (Ent (..))
+import           Data.Ecstasy.Types (Ent (..), Hooks (..))
 import qualified Data.Map as M
 import           GameData
 import           Linear.Matrix
@@ -107,18 +107,9 @@ initialize = do
     , gridSize = Just (10, 7)
     }
 
-  recomputeNavMesh
   start separateTask
   start acquireTask
-  start navMeshTask
   start $ volcanoPassive (volPos + V2 40 0) 0.4
-
-
--- TODO(sandy): such a big hack; we need hooks for death in ecstasy
-navMeshTask :: Task ()
-navMeshTask = forever $ do
-  wait 1
-  lift recomputeNavMesh
 
 
 volcanoPassive :: V2 -> Double -> Task ()
@@ -206,12 +197,12 @@ update dt = do
   updateCommands dt
 
   -- death to infidels
-  emap aliveEnts $ do
+  toKill <- efor aliveEnts $ do
     Limit health _ <- query hp
+    guard $ health <= 0
+    queryEnt
 
-    pure $ if health <= 0
-              then delEntity
-              else unchanged
+  for_ toKill deleteEntity
 
 
 player :: Mouse -> Keyboard -> Game ()
@@ -377,10 +368,21 @@ draw mouse = fmap (cull . DL.toList . fst)
 
 
 main :: IO ()
-main = play config (const $ run realState initialize player update draw) pure
+main = play config (const $ run realState hooks initialize player update draw) pure
   where
     config = EngineConfig (gameWidth, gameHeight) "Typecraft"
            $ rgb 0 0 0
+
+    hooks = Hooks
+      { hookNewEnt = \e ->
+          eon e (with gridSize) >>= traverse_ (const recomputeNavMesh)
+      , hookDelEnt = \e -> do
+          eon e (with gridSize) >>= \case
+            Just _ -> do
+              setEntity e delEntity
+              recomputeNavMesh
+            Nothing -> pure ()
+      }
 
     realState = LocalState
           { _lsSelBox      = Nothing

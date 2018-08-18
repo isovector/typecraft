@@ -11,6 +11,7 @@ module Client
 
 import           Behavior
 import           Control.FRPNow.Time (delayTime)
+import           Data.Ecstasy.Types (SystemState (..), Hooks)
 import qualified Data.Set as S
 import           Game.Sequoia.Keyboard
 import           Game.Sequoia.Window (mousePos, mouseButtons)
@@ -54,13 +55,15 @@ getKB keys oldKeys = do
   pure Keyboard {..}
 
 
-run :: LocalState
+run
+    :: LocalState
+    -> Hooks EntWorld Underlying
     -> Game ()
     -> (Mouse -> Keyboard -> Game ())
     -> (Time -> Game ())
     -> (Mouse -> Game [Form])
     -> N (B Element)
-run realState initialize player update draw = do
+run realState hooks initialize player update draw = do
   clock    <- deltaTime <$> getClock
 
   keyboard <- do
@@ -78,7 +81,7 @@ run realState initialize player update draw = do
               { pos     = VTable vgetPos vsetPos
               , entSize = VTable vgetEntSize vsetEntSize
               }
-      init = fst $ runGame (realState, (0, world)) initialize
+      init = fst $ runGame (realState, (SystemState 0 world hooks)) initialize
 
   (game, _) <- foldmp init $ \state -> do
     -- arrs  <- sample $ arrows keyboard

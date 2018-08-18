@@ -105,7 +105,7 @@ entsWith
     => (w ('WorldOf m) -> IM.IntMap a)
     -> SystemT w m [Ent]
 entsWith sel = do
-  w <- fmap snd $ E.SystemT get
+  E.SystemState _ w _ <- E.SystemT get
   pure . fmap E.Ent $ IM.keys $ sel w
 
 
