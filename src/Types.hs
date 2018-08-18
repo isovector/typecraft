@@ -28,13 +28,10 @@ import Game.Sequoia
 import Game.Sequoia.Keyboard
 import Game.Sequoia.Window (MouseButton (..))
 import QuadTree.QuadTree (QuadTree)
+import qualified Data.PathGrid as PG
 
 
-
-data NavMesh = NavMesh
-  { nmIsOpen :: (Int, Int) -> Bool
-  , nmFind   :: (Int, Int) -> (Int, Int) -> Maybe [(Int, Int)]
-  }
+type NavMesh = PG.JumpGrid
 
 
 data Map = Map
@@ -69,6 +66,7 @@ data LocalState = LocalState
   , _lsTasks       :: ![Task ()]
   , _lsDynamic     :: !(QuadTree Ent Double)
   , _lsMap         :: !Map
+  , _lsNavMesh     :: !NavMesh
   , _lsCommandCont :: !(Maybe WaitingForCommand)
   }
 

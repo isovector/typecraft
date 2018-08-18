@@ -107,9 +107,18 @@ initialize = do
     , gridSize = Just (10, 7)
     }
 
+  recomputeNavMesh
   start separateTask
   start acquireTask
+  start navMeshTask
   start $ volcanoPassive (volPos + V2 40 0) 0.4
+
+
+-- TODO(sandy): such a big hack; we need hooks for death in ecstasy
+navMeshTask :: Task ()
+navMeshTask = forever $ do
+  wait 1
+  lift recomputeNavMesh
 
 
 volcanoPassive :: V2 -> Double -> Task ()
@@ -198,7 +207,6 @@ update dt = do
 
   -- death to infidels
   emap aliveEnts $ do
-    Unit <- query unitType
     Limit health _ <- query hp
 
     pure $ if health <= 0
@@ -379,7 +387,10 @@ main = play config (const $ run realState initialize player update draw) pure
           , _lsPlayer      = mePlayer
           , _lsTasks       = []
           , _lsDynamic     = mkQuadTree (20, 20) (V2 800 600)
-          , _lsMap         = maps M.! "rpg2k"
+          , _lsMap         = theMap
+          , _lsNavMesh     = mapNavMesh theMap
           , _lsCommandCont = Nothing
           }
+
+    theMap = maps M.! "rpg2k"
 

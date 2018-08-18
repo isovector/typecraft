@@ -66,8 +66,7 @@ buildNavMesh w h l =
         let p = (x, y)
         guard $ not $ isOpen l p
         pure p
-      jps = foldr (\p -> PG.closeArea p p) (PG.make w h) closed
-   in NavMesh (isOpen l) $ PG.findPath jps
+   in foldr (\p -> PG.closeArea p p) (PG.make w h) closed
 
 
 isOpen :: Layer -> (Int, Int) -> Bool

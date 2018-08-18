@@ -38,6 +38,13 @@ import           Game.Sequoia.Window (MouseButton (..))
 import           Linear (norm, normalize, (*^), (^*), quadrance, M22)
 import qualified QuadTree.QuadTree as QT
 import           Types
+import qualified Data.PathGrid as PG
+
+nmIsOpen :: NavMesh -> (Int, Int) -> Bool
+nmIsOpen = PG.isTileOpen
+
+nmFind :: NavMesh -> (Int, Int) -> (Int, Int) -> Maybe [(Int, Int)]
+nmFind = PG.findPath
 
 
 unitScript :: Ent -> Task a -> Task ()
@@ -297,4 +304,17 @@ eon
     -> QueryT EntWorld Underlying a
     -> SystemT EntWorld Underlying (Maybe a)
 eon e = fmap listToMaybe . efor (anEnt e)
+
+
+recomputeNavMesh :: Game ()
+recomputeNavMesh = do
+  nm <- gets $ mapNavMesh . _lsMap
+  buildings <- efor aliveEnts $ do
+    Building <- query unitType
+    xy@(x, y) <- fmap (view $ from centerTileScreen) (query pos)
+    (dx, dy)  <- query gridSize
+    (,) <$> pure xy
+        <*> pure (x + dx, y + dy)
+
+  modify $ lsNavMesh .~ foldr (uncurry PG.closeArea) nm buildings
 

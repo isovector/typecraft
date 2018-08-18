@@ -212,7 +212,7 @@ fastInRange dst rng = quadrance dst <= rng * rng
 
 findPath :: MonadState LocalState m => V2 -> V2 -> m (Maybe [V2])
 findPath src dst = do
-  nm <- gets $ mapNavMesh . _lsMap
+  nm <- gets _lsNavMesh
   let dst' = dst ^. from centerTileScreen
       thepath = nmFind nm (src ^. from centerTileScreen)
                           dst'
