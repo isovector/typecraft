@@ -44,14 +44,14 @@ makeLenses ''AcquireCmd
 makeLenses ''BuildCmd
 
 instance IsPlacementCommand BuildCmd where
-  fromPlacement e i proto = do
-    Just src <- eon e $ query pos
+  fromPlacement proto e i = do
     let dst = i ^. centerTileScreen
-    findPath src dst >>= pure . \case
-      Just pp -> Success $ BuildCmd proto dst . Just $ MoveCmd pp
-      Nothing -> Failure "Unable to get to building location"
+    fromLocation @MoveCmd () e dst >>= pure . \case
+      Success cmd -> Success $ BuildCmd proto dst $ Just cmd
+      _           -> Failure "Unable to get to building location"
 
 instance IsCommand BuildCmd where
+  type CommandParam BuildCmd = Proto
   pumpCommand dt e bc@BuildCmd{..} = case _bcMove of
     Just cmd -> do
       cmd' <- pumpCommand dt e cmd
@@ -66,7 +66,7 @@ instance IsCommand BuildCmd where
       pure Nothing
 
 instance IsLocationCommand PsiStormCmd where
-  fromLocation _ = pure . pure . PsiStormCmd
+  fromLocation _ _ = pure . pure . PsiStormCmd
 
 instance IsCommand PsiStormCmd where
   pumpCommand _ _ (PsiStormCmd v2) = do
@@ -98,7 +98,7 @@ instance IsCommand PsiStormCmd where
     pure Nothing
 
 instance IsInstantCommand AcquireCmd where
-  fromInstant e = do
+  fromInstant _ e = do
     Just (p, acq, o) <-
       eon e $ (,,) <$> query pos
                    <*> query acqRange
@@ -112,7 +112,7 @@ instance IsInstantCommand AcquireCmd where
     -- TODO(sandy): check to make sure you can attack this guy!
     case listToMaybe bads of
       Just (t, _) -> do
-        fromUnit @AttackCmd e t >>= \case
+        fromUnit @AttackCmd () e t >>= \case
           Success atk -> pure $ pure $ AcquireCmd atk p acq
           _ -> pure Attempted
 
@@ -141,7 +141,7 @@ sqr :: Num a => a -> a
 sqr x = x * x
 
 instance IsLocationCommand MoveCmd where
-  fromLocation e g = do
+  fromLocation _ e g = do
     [p] <- efor (anEnt e) $ query pos
     mpp <- findPath p g
     pure $ case mpp of
@@ -161,7 +161,7 @@ instance IsCommand MoveCmd where
 
 
 instance IsInstantCommand StopCmd where
-  fromInstant _ = pure $ pure StopCmd
+  fromInstant _ _ = pure $ pure StopCmd
 
 instance IsCommand StopCmd where
   pumpCommand _ _ _ = pure Nothing
@@ -175,7 +175,7 @@ acRepathTime = 0.2
 
 
 instance IsUnitCommand AttackCmd where
-  fromUnit e t = do
+  fromUnit _ e t = do
     mas <- eon e $ query attacks
     case mas of
       Nothing -> pure $ Failure "No attackdata!"
@@ -222,7 +222,7 @@ instance IsCommand AttackCmd where
                 || (_acRepath <= 0
                  && not (fastInRange (fst (fromJust _acPath) - tp) rng))) of
               True -> do
-                fromLocation @MoveCmd e tp >>= \case
+                fromLocation @MoveCmd () e tp >>= \case
                   Success mcmd ->
                     pure . Just $ ac & acPath   ?~ (tp, mcmd)
                                      & acRepath .~ acRepathTime
@@ -272,3 +272,5 @@ getSelectedEnts :: Game [Ent]
 getSelectedEnts = efor aliveEnts $
   with selected *> queryEnt
 
+directMoveCommand :: V2 -> Command
+directMoveCommand = SomeCommand . MoveCmd . pure

@@ -106,21 +106,21 @@ loadWaiting :: Commander -> Game ()
 loadWaiting cmd = do
   sel <- getSelectedEnts
   case cmd of
-    LocationCommand (Proxy2 :: Proxy2 a V2) ->
+    LocationCommand (Proxy2 param :: Proxy2 a V2) ->
       modify $ lsCommandCont ?~ do
-        LocationCommand . GameCont @a $ \v2 ->
-          for_ sel $ \e -> issueLocation @a e v2
+        LocationCommand . GameCont @a param $ \v2 ->
+          for_ sel $ \e -> issueLocation @a param e v2
 
-    UnitCommand (Proxy2 :: Proxy2 a Ent) ->
+    UnitCommand (Proxy2 param :: Proxy2 a Ent) ->
       modify $ lsCommandCont ?~ do
-        UnitCommand . GameCont @a $ \t ->
-          for_ sel $ \e -> issueUnit @a e t
+        UnitCommand . GameCont @a param $ \t ->
+          for_ sel $ \e -> issueUnit @a param e t
 
-    InstantCommand (_ :: Proxy2 a ()) -> do
-      for_ sel $ issueInstant @a
+    InstantCommand (Proxy2 param :: Proxy2 a ()) -> do
+      for_ sel $ issueInstant @a param
 
-    PlacementCommand proto (Proxy2 :: Proxy2 a (Int, Int)) ->
+    PlacementCommand (Proxy2 param :: Proxy2 a (Int, Int)) ->
       modify $ lsCommandCont ?~ do
-        PlacementCommand proto . GameCont @a $ \i ->
-          for_ sel $ \e -> issuePlacement @a e i proto
+        PlacementCommand . GameCont @a param $ \i ->
+          for_ sel $ \e -> issuePlacement @a param e i
 

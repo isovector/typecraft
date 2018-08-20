@@ -82,8 +82,8 @@ initialize = do
       , commands  = Just stdWidgets
       }
 
-  issueUnit @AttackCmd (Ent 0) (Ent 1)
-  issueUnit @AttackCmd (Ent 9) (Ent 10)
+  issueUnit @AttackCmd () (Ent 0) (Ent 1)
+  issueUnit @AttackCmd () (Ent 9) (Ent 10)
 
   void $ createEntity newEntity
     { pos      = Just $ V2 700 300
@@ -187,7 +187,7 @@ acquireTask = forever $ do
     with acqRange
     without currentCommand
     queryEnt
-  lift . for_ es $ issueInstant @AcquireCmd
+  lift . for_ es $ issueInstant @AcquireCmd ()
   wait 0.5
 
 
@@ -212,20 +212,20 @@ player mouse kb = do
     Nothing -> playerNotWaiting mouse kb
     Just tt ->  do
       case tt of
-        InstantCommand (GameCont f) -> do
+        InstantCommand (GameCont _ f) -> do
           f ()
           unsetTT
-        LocationCommand (GameCont f) ->
+        LocationCommand (GameCont _ f) ->
           when (mPress mouse buttonLeft) $ do
             f $ mPos mouse
             unless (kDown kb LeftShiftKey) unsetTT
-        UnitCommand (GameCont f) ->
+        UnitCommand (GameCont _ f) ->
           when (mPress mouse buttonLeft) $ do
             msel <- getUnitAtPoint $ mPos mouse
             for_ msel $ \sel -> do
               f sel
               unless (kDown kb LeftShiftKey) unsetTT
-        PlacementCommand _ (GameCont f) ->
+        PlacementCommand (GameCont _ f) ->
           when (mPress mouse buttonLeft) $ do
             f $ mPos mouse ^. from centerTileScreen
             unless (kDown kb LeftShiftKey) unsetTT
@@ -271,7 +271,7 @@ playerNotWaiting mouse kb = do
   when (mPress mouse buttonRight) $ do
     sel <- getSelectedEnts
     for_ sel $ \ent ->
-      issueLocation @MoveCmd ent $ mPos mouse
+      issueLocation @MoveCmd () ent $ mPos mouse
 
   allSel <- efor aliveEnts $ with selected >> query commands
   z <- for (listToMaybe allSel) $ \acts -> do
@@ -362,8 +362,11 @@ draw mouse = fmap (cull . DL.toList . fst)
 
   -- draw placement command
   gets _lsCommandCont >>= \case
-    Just (PlacementCommand World{gfx = Just g} _) ->
-      emit (mPos mouse ^. from centerTileScreen . centerTileScreen) g
+    Just (PlacementCommand gc) ->
+      case cast @_ @(GameCont BuildCmd (Int, Int)) gc of
+        Just (GameCont World{gfx = Just g} _) ->
+          emit (mPos mouse ^. from centerTileScreen . centerTileScreen) g
+        _ -> pure ()
     _ -> pure ()
 
   box <- gets _lsSelBox

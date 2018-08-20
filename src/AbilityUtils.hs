@@ -57,7 +57,7 @@ missile proto fx attacker t = do
     (Just pos0, Just tpos) -> do
       ment <- lift $ createEntity proto
         { pos = Just pos0
-        , currentCommand = Just $ SomeCommand $ MoveCmd [tpos]
+        , currentCommand = Just $ directMoveCommand tpos
         }
 
       waitUntil $ do

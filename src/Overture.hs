@@ -266,23 +266,44 @@ updateCommands dt = do
       }
 
 
-issueInstant :: forall a. IsInstantCommand a => Ent -> Game ()
-issueInstant e = fromInstant @a e >>= resolveAttempt e
+issueInstant
+    :: forall a
+     . IsInstantCommand a
+    => CommandParam a
+    -> Ent
+    -> Game ()
+issueInstant param e =
+  fromInstant @a param e >>= resolveAttempt e
 
-issueLocation :: forall a. IsLocationCommand a => Ent -> V2 -> Game ()
-issueLocation e v2 = fromLocation @a e v2 >>= resolveAttempt e
+issueLocation
+    :: forall a
+     . IsLocationCommand a
+    => CommandParam a
+    -> Ent
+    -> V2
+    -> Game ()
+issueLocation param e v2 =
+  fromLocation @a param e v2 >>= resolveAttempt e
 
-issueUnit :: forall a. IsUnitCommand a => Ent -> Ent -> Game ()
-issueUnit e t = fromUnit @a e t >>= resolveAttempt e
+issueUnit
+    :: forall a
+     . IsUnitCommand a
+    => CommandParam a
+    -> Ent
+    -> Ent
+    -> Game ()
+issueUnit param e t =
+  fromUnit @a param e t >>= resolveAttempt e
 
 issuePlacement
     :: forall a
      . IsPlacementCommand a
-    => Ent
+    => CommandParam a
+    -> Ent
     -> (Int, Int)
-    -> Proto
     -> Game ()
-issuePlacement e i proto = fromPlacement @a e i proto >>= resolveAttempt e
+issuePlacement param e i =
+  fromPlacement @a param e i >>= resolveAttempt e
 
 
 resolveAttempt

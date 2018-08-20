@@ -41,7 +41,7 @@ gunAttackData = AttackData
 psiStormWidget :: CommandWidget
 psiStormWidget = CommandWidget
   { cwName = "Psi Storm"
-  , cwCommand = LocationCommand $ Proxy2 @PsiStormCmd
+  , cwCommand = LocationCommand $ Proxy2 @PsiStormCmd ()
   , cwVisible = True
   , cwHotkey = Just TKey
   }
@@ -50,7 +50,7 @@ psiStormWidget = CommandWidget
 moveWidget :: CommandWidget
 moveWidget = CommandWidget
   { cwName = "Move"
-  , cwCommand = LocationCommand $ Proxy2 @MoveCmd
+  , cwCommand = LocationCommand $ Proxy2 @MoveCmd ()
   , cwVisible = True
   , cwHotkey = Just MKey
   }
@@ -58,7 +58,7 @@ moveWidget = CommandWidget
 attackWidget :: CommandWidget
 attackWidget = CommandWidget
   { cwName = "Attack"
-  , cwCommand = UnitCommand $ Proxy2 @AttackCmd
+  , cwCommand = UnitCommand $ Proxy2 @AttackCmd ()
   , cwVisible = True
   , cwHotkey = Just AKey
   }
@@ -66,7 +66,7 @@ attackWidget = CommandWidget
 stopWidget :: CommandWidget
 stopWidget = CommandWidget
   { cwName = "Stop"
-  , cwCommand = InstantCommand $ Proxy2 @StopCmd
+  , cwCommand = InstantCommand $ Proxy2 @StopCmd ()
   , cwVisible = True
   , cwHotkey = Just SKey
   }
@@ -74,7 +74,7 @@ stopWidget = CommandWidget
 acquireWidget :: CommandWidget
 acquireWidget = CommandWidget
   { cwName = "Acquire"
-  , cwCommand = InstantCommand $ Proxy2 @AcquireCmd
+  , cwCommand = InstantCommand $ Proxy2 @AcquireCmd ()
   , cwVisible = False
   , cwHotkey = Nothing
   }
@@ -82,7 +82,7 @@ acquireWidget = CommandWidget
 buildCommandCenterWidget :: CommandWidget
 buildCommandCenterWidget = CommandWidget
   { cwName = "Build Command Center"
-  , cwCommand = PlacementCommand commandCenter $ Proxy2 @BuildCmd
+  , cwCommand = PlacementCommand $ Proxy2 @BuildCmd commandCenter
   , cwVisible = True
   , cwHotkey = Just CKey
   }

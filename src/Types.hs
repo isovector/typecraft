@@ -169,20 +169,26 @@ instance Applicative Attempt where
 
 
 class IsCommand a => IsLocationCommand a where
-  fromLocation :: Ent -> V2 -> Game (Attempt a)
+  fromLocation :: CommandParam a -> Ent -> V2 -> Game (Attempt a)
 
 class IsCommand a => IsInstantCommand a where
-  fromInstant :: Ent -> Game (Attempt a)
+  fromInstant :: CommandParam a -> Ent -> Game (Attempt a)
 
 class IsCommand a => IsUnitCommand a where
-  fromUnit :: Ent -> Ent -> Game (Attempt a)
+  fromUnit :: CommandParam a -> Ent -> Ent -> Game (Attempt a)
 
 class IsCommand a => IsPlacementCommand a where
-  fromPlacement :: Ent -> (Int, Int) -> Proto -> Game (Attempt a)
+  fromPlacement :: CommandParam a -> Ent -> (Int, Int) -> Game (Attempt a)
 
 
 class Typeable a => IsCommand a where
-  pumpCommand :: Time -> Ent -> a -> Game (Maybe a)
+  type CommandParam a
+  type instance CommandParam a = ()
+  pumpCommand
+      :: Time
+      -> Ent
+      -> a
+      -> Game (Maybe a)
 
 data Command where
   SomeCommand
@@ -205,20 +211,23 @@ data Commanding f where
       => f a ()
       -> Commanding f
   PlacementCommand
-    :: IsPlacementCommand a
-    => Proto
-    -> f a (Int, Int)
-    -> Commanding f
+      :: IsPlacementCommand a
+      => f a (Int, Int)
+      -> Commanding f
 
 instance Show (Commanding f) where
-  show (LocationCommand _)    = "LocationCommand"
-  show (UnitCommand _)        = "UnitCommand"
-  show (InstantCommand _)     = "InstantCommand"
-  show (PlacementCommand _ _) = "PlacementCommand"
+  show (LocationCommand _)  = "LocationCommand"
+  show (UnitCommand _)      = "UnitCommand"
+  show (InstantCommand _)   = "InstantCommand"
+  show (PlacementCommand _) = "PlacementCommand"
 
 data Proxy2 a b = Proxy2
+  { getCommandParam :: CommandParam a
+  }
+
 data GameCont a b = GameCont
-  { unTag :: b -> Game ()
+  { commandParam :: CommandParam a
+  , unTag :: b -> Game ()
   }
 
 type Commander         = Commanding Proxy2
