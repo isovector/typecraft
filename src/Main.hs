@@ -94,7 +94,7 @@ initialize = do
     , owner    = Just mePlayer
     , unitType = Just Unit
     , hp       = Just $ Limit 100 100
-    , commands = Just $ psiStormWidget : stdWidgets
+    , commands = Just $ buildCommandCenterWidget : psiStormWidget : stdWidgets
     }
 
   let volPos = V2 300 300
@@ -225,6 +225,10 @@ player mouse kb = do
             for_ msel $ \sel -> do
               f sel
               unless (kDown kb LeftShiftKey) unsetTT
+        PlacementCommand _ (GameCont f) ->
+          when (mPress mouse buttonLeft) $ do
+            f $ mPos mouse ^. from centerTileScreen
+            unless (kDown kb LeftShiftKey) unsetTT
 
   when (mPress mouse buttonRight) unsetTT
 
@@ -333,7 +337,7 @@ draw mouse = fmap (cull . DL.toList . fst)
     -- debug draw
     void . optional $ do
       SomeCommand cmd <- query currentCommand
-      Just (MoveCmd g@(_:_)) <- pure . listToMaybe $ cmd ^.. biplate
+      Just (MoveCmd g@(_:_)) <- pure $ cast cmd
       Unit <- query unitType
       let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
       emit (V2 0 0) $ traced ls $ path $ p : g
@@ -355,6 +359,12 @@ draw mouse = fmap (cull . DL.toList . fst)
     p <- query pos
     g <- query gfx
     emit p g
+
+  -- draw placement command
+  gets _lsCommandCont >>= \case
+    Just (PlacementCommand World{gfx = Just g} _) ->
+      emit (mPos mouse ^. from centerTileScreen . centerTileScreen) g
+    _ -> pure ()
 
   box <- gets _lsSelBox
   for_ box $ \bpos -> do

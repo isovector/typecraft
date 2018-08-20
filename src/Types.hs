@@ -22,8 +22,8 @@ import           Control.Lens (makeLenses, makePrisms)
 import           Control.Monad.Coroutine
 import           Control.Monad.Coroutine.SuspensionFunctors
 import           Control.Monad.State.Strict
-import           Data.Data
 import           Data.Ecstasy
+import           Data.Typeable
 import           Game.Sequoia
 import           Game.Sequoia.Keyboard
 import           Game.Sequoia.Window (MouseButton (..))
@@ -177,8 +177,11 @@ class IsCommand a => IsInstantCommand a where
 class IsCommand a => IsUnitCommand a where
   fromUnit :: Ent -> Ent -> Game (Attempt a)
 
+class IsCommand a => IsPlacementCommand a where
+  fromPlacement :: Ent -> (Int, Int) -> Proto -> Game (Attempt a)
 
-class Data a => IsCommand a where
+
+class Typeable a => IsCommand a where
   pumpCommand :: Time -> Ent -> a -> Game (Maybe a)
 
 data Command where
@@ -189,17 +192,34 @@ data Command where
 
 
 data Commanding f where
-  LocationCommand :: IsLocationCommand a => f a V2  -> Commanding f
-  UnitCommand     :: IsUnitCommand     a => f a Ent -> Commanding f
-  InstantCommand  :: IsInstantCommand  a => f a ()  -> Commanding f
+  LocationCommand
+      :: IsLocationCommand a
+      => f a V2
+      -> Commanding f
+  UnitCommand
+      :: IsUnitCommand a
+      => f a Ent
+      -> Commanding f
+  InstantCommand
+      :: IsInstantCommand a
+      => f a ()
+      -> Commanding f
+  PlacementCommand
+    :: IsPlacementCommand a
+    => Proto
+    -> f a (Int, Int)
+    -> Commanding f
 
 instance Show (Commanding f) where
-  show (LocationCommand _) = "LocationCommand"
-  show (UnitCommand _)     = "UnitCommand"
-  show (InstantCommand _)  = "InstantCommand"
+  show (LocationCommand _)    = "LocationCommand"
+  show (UnitCommand _)        = "UnitCommand"
+  show (InstantCommand _)     = "InstantCommand"
+  show (PlacementCommand _ _) = "PlacementCommand"
 
 data Proxy2 a b = Proxy2
-data GameCont a b = GameCont { unTag :: b -> Game () }
+data GameCont a b = GameCont
+  { unTag :: b -> Game ()
+  }
 
 type Commander         = Commanding Proxy2
 type WaitingForCommand = Commanding GameCont
@@ -210,7 +230,7 @@ data CommandWidget = CommandWidget
   , cwCommand :: Commander
   , cwVisible :: Bool
   , cwHotkey  :: Maybe Key
-  } deriving Show
+  } deriving (Show)
 
 
 

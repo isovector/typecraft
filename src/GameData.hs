@@ -15,6 +15,16 @@ neutralPlayer :: Player
 neutralPlayer = Player $ rgb 0.25 0.55 0.95
 
 
+commandCenter :: Proto
+commandCenter = newEntity
+  { gfx            = Just $ toForm $ image "assets/cc.png"
+  , gridSize       = Just (4, 3)
+  , classification = Just BuildingUnit
+  , unitType       = Just Building
+  , hp             = Just $ Limit 100 100
+  }
+
+
 gunAttackData :: AttackData
 gunAttackData = AttackData
   { _aCooldown = Limit 0 0.75
@@ -67,6 +77,14 @@ acquireWidget = CommandWidget
   , cwCommand = InstantCommand $ Proxy2 @AcquireCmd
   , cwVisible = False
   , cwHotkey = Nothing
+  }
+
+buildCommandCenterWidget :: CommandWidget
+buildCommandCenterWidget = CommandWidget
+  { cwName = "Build Command Center"
+  , cwCommand = PlacementCommand commandCenter $ Proxy2 @BuildCmd
+  , cwVisible = True
+  , cwHotkey = Just CKey
   }
 
 stdWidgets :: [CommandWidget]

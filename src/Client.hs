@@ -119,3 +119,8 @@ loadWaiting cmd = do
     InstantCommand (_ :: Proxy2 a ()) -> do
       for_ sel $ issueInstant @a
 
+    PlacementCommand proto (Proxy2 :: Proxy2 a (Int, Int)) ->
+      modify $ lsCommandCont ?~ do
+        PlacementCommand proto . GameCont @a $ \i ->
+          for_ sel $ \e -> issuePlacement @a e i proto
+

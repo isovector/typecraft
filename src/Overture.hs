@@ -275,6 +275,15 @@ issueLocation e v2 = fromLocation @a e v2 >>= resolveAttempt e
 issueUnit :: forall a. IsUnitCommand a => Ent -> Ent -> Game ()
 issueUnit e t = fromUnit @a e t >>= resolveAttempt e
 
+issuePlacement
+    :: forall a
+     . IsPlacementCommand a
+    => Ent
+    -> (Int, Int)
+    -> Proto
+    -> Game ()
+issuePlacement e i proto = fromPlacement @a e i proto >>= resolveAttempt e
+
 
 resolveAttempt
     :: IsCommand a

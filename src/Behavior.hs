@@ -11,30 +11,59 @@ import Overture
 import AbilityUtils
 
 data PsiStormCmd = PsiStormCmd V2
-  deriving Data
+  deriving Typeable
 
 data MoveCmd = MoveCmd [V2]
-  deriving (Data)
+  deriving (Typeable)
 
 data StopCmd = StopCmd
-  deriving (Data)
+  deriving (Typeable)
 
 data AttackCmd = AttackCmd
   { _acIx     :: Int
   , _acTarget :: Ent
   , _acPath   :: Maybe (V2, MoveCmd)
   , _acRepath :: Time
-  } deriving (Data)
+  } deriving (Typeable)
 
 data AcquireCmd = AcquireCmd
   { _aqAttack :: AttackCmd
   , _aqPos    :: V2
   , _aqDist   :: Double
-  } deriving (Data)
+  } deriving (Typeable)
+
+data BuildCmd = BuildCmd
+  { _bcProto :: Proto
+  , _bcPos   :: V2
+  , _bcMove  :: Maybe MoveCmd
+  } deriving (Typeable)
 
 
 makeLenses ''AttackCmd
 makeLenses ''AcquireCmd
+makeLenses ''BuildCmd
+
+instance IsPlacementCommand BuildCmd where
+  fromPlacement e i proto = do
+    Just src <- eon e $ query pos
+    let dst = i ^. centerTileScreen
+    findPath src dst >>= pure . \case
+      Just pp -> Success $ BuildCmd proto dst . Just $ MoveCmd pp
+      Nothing -> Failure "Unable to get to building location"
+
+instance IsCommand BuildCmd where
+  pumpCommand dt e bc@BuildCmd{..} = case _bcMove of
+    Just cmd -> do
+      cmd' <- pumpCommand dt e cmd
+      pure $ Just $ bc & bcMove .~ cmd'
+
+    Nothing -> do
+      Just o <- eon e $ query owner
+      void . createEntity $ _bcProto
+        { pos   = Just _bcPos
+        , owner = Just o
+        }
+      pure Nothing
 
 instance IsLocationCommand PsiStormCmd where
   fromLocation _ = pure . pure . PsiStormCmd
