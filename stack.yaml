@@ -3,7 +3,6 @@ packages:
   - '.'
   - '../ecstasy'
   - '../sequoia'
-  - '../jps'
   - extra-dep: true
     location:
       git: https://github.com/isovector/htiled.git
@@ -21,5 +20,6 @@ extra-deps:
   - aeson-1.2.2.0
   - th-abstraction-0.2.6.0
   - transformers-0.5.5.0
+  - jps-0.1.0.0
 
 resolver: lts-11.9

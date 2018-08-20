@@ -17,21 +17,20 @@ module Types
   , Key (..)
   ) where
 
--- import System.Random
-import Control.Lens (makeLenses, makePrisms)
-import Control.Monad.Coroutine
-import Control.Monad.Coroutine.SuspensionFunctors
-import Control.Monad.State.Strict
-import Data.Data
-import Data.Ecstasy
-import Game.Sequoia
-import Game.Sequoia.Keyboard
-import Game.Sequoia.Window (MouseButton (..))
-import QuadTree.QuadTree (QuadTree)
-import qualified Data.PathGrid as PG
+import qualified Algorithm.Search.JumpPoint as JP
+import           Control.Lens (makeLenses, makePrisms)
+import           Control.Monad.Coroutine
+import           Control.Monad.Coroutine.SuspensionFunctors
+import           Control.Monad.State.Strict
+import           Data.Data
+import           Data.Ecstasy
+import           Game.Sequoia
+import           Game.Sequoia.Keyboard
+import           Game.Sequoia.Window (MouseButton (..))
+import           QuadTree.QuadTree (QuadTree)
 
 
-type NavMesh = PG.JumpGrid
+type NavMesh = JP.JumpGrid
 
 
 data Map = Map

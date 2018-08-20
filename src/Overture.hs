@@ -20,13 +20,14 @@ module Overture
   , biplate
   ) where
 
+import qualified Algorithm.Search.JumpPoint as JP
 import           BasePrelude hiding (group, rotate, lazy, index, uncons, loop, inRange)
 import           Control.Lens hiding (without)
-import           Data.Data.Lens (biplate)
 import           Control.Monad.State.Class (MonadState, get, gets, put, modify)
 import           Control.Monad.State.Strict (runState)
 import           Control.Monad.Trans.Class (lift)
 import           Data.Coerce
+import           Data.Data.Lens (biplate)
 import qualified Data.Ecstasy as E
 import           Data.Ecstasy hiding (newEntity)
 import           Data.Ecstasy.Internal (surgery)
@@ -38,13 +39,12 @@ import           Game.Sequoia.Window (MouseButton (..))
 import           Linear (norm, normalize, (*^), (^*), quadrance, M22)
 import qualified QuadTree.QuadTree as QT
 import           Types
-import qualified Data.PathGrid as PG
 
 nmIsOpen :: NavMesh -> (Int, Int) -> Bool
-nmIsOpen = PG.isTileOpen
+nmIsOpen = JP.isTileOpen
 
 nmFind :: NavMesh -> (Int, Int) -> (Int, Int) -> Maybe [(Int, Int)]
-nmFind = PG.findPath
+nmFind = JP.findPath
 
 
 unitScript :: Ent -> Task a -> Task ()
@@ -316,5 +316,5 @@ recomputeNavMesh = do
     (,) <$> pure xy
         <*> pure (x + dx, y + dy)
 
-  modify $ lsNavMesh .~ foldr (uncurry PG.closeArea) nm buildings
+  modify $ lsNavMesh .~ foldr (uncurry JP.closeArea) nm buildings
 

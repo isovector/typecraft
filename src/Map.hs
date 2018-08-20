@@ -3,8 +3,8 @@
 
 module Map where
 
+import qualified Algorithm.Search.JumpPoint as JP
 import qualified Data.Map as M
-import qualified Data.PathGrid as PG
 import           Data.Tiled
 import           Overture hiding (distance)
 
@@ -66,7 +66,7 @@ buildNavMesh w h l =
         let p = (x, y)
         guard $ not $ isOpen l p
         pure p
-   in foldr (\p -> PG.closeArea p p) (PG.make w h) closed
+   in foldr (\p -> JP.closeArea p p) (JP.make w h) closed
 
 
 isOpen :: Layer -> (Int, Int) -> Bool
