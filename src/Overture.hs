@@ -29,7 +29,7 @@ import           Control.Monad.Trans.Class (lift)
 import           Data.Coerce
 import           Data.Data.Lens (biplate)
 import qualified Data.Ecstasy as E
-import           Data.Ecstasy hiding (newEntity)
+import           Data.Ecstasy hiding (newEntity, createEntity)
 import           Data.Ecstasy.Internal (surgery)
 import qualified Data.Ecstasy.Types as E
 import qualified Data.IntMap.Strict as IM
@@ -354,4 +354,29 @@ recomputeNavMesh = do
         <*> pure (x + dx, y + dy)
 
   modify $ lsNavMesh .~ foldr (uncurry JP.closeArea) nm buildings
+
+
+isPassiveCommand :: Commanding f -> Bool
+isPassiveCommand (PassiveCommand _) = True
+isPassiveCommand _ = False
+
+getPassives :: Proto -> [Commanding Proxy2]
+getPassives
+  = maybe [] id
+  . fmap (filter isPassiveCommand . fmap cwCommand)
+  . commands
+
+
+createEntity :: Proto -> Game Ent
+createEntity p = do
+  let ps = getPassives p
+  e <- E.createEntity p
+  sps' <- fmap catMaybes . for ps $
+    \(PassiveCommand (Proxy2 param :: Proxy2 a ())) ->
+      fromInstant @a param e >>= pure . \case
+        Success a -> Just $ SomePassive param a
+        _ -> Nothing
+
+  emap (anEnt e) $ pure unchanged { activePassives = Set sps' }
+  pure e
 

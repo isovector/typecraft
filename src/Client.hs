@@ -119,6 +119,9 @@ loadWaiting cmd = do
     InstantCommand (Proxy2 param :: Proxy2 a ()) -> do
       for_ sel $ issueInstant @a param
 
+    PassiveCommand (Proxy2 _ :: Proxy2 a ()) -> do
+      error "someone tried to start a passive"
+
     PlacementCommand (Proxy2 param :: Proxy2 a (Int, Int)) ->
       modify $ lsCommandCont ?~ do
         PlacementCommand . GameCont @a param $ \i ->

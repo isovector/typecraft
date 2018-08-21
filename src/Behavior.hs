@@ -13,6 +13,9 @@ import AbilityUtils
 data PsiStormCmd = PsiStormCmd V2
   deriving Typeable
 
+data PassiveScriptCmd = PassiveScriptCmd Int
+  deriving Typeable
+
 data MoveCmd = MoveCmd [V2]
   deriving (Typeable)
 
@@ -42,6 +45,17 @@ data BuildCmd = BuildCmd
 makeLenses ''AttackCmd
 makeLenses ''AcquireCmd
 makeLenses ''BuildCmd
+
+instance IsCommand PassiveScriptCmd where
+  type CommandParam PassiveScriptCmd = Ent -> Task ()
+  pumpCommand _ _ a = pure $ Just a
+
+instance IsInstantCommand PassiveScriptCmd where
+  fromInstant t e =
+    fmap (Success . PassiveScriptCmd) . start $ t e
+
+instance IsPassiveCommand PassiveScriptCmd where
+  endPassive _ (PassiveScriptCmd i) = stop i
 
 instance IsPlacementCommand BuildCmd where
   fromPlacement proto e i = do

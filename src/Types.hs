@@ -143,6 +143,7 @@ data EntWorld f = World
   , isAlive        :: !(Field f ())
   , classification :: !(Field f Classification)
   , commands       :: !(Field f [CommandWidget])
+  , activePassives :: !(Field f [SomePassive])
 
   , pos            :: !(Component f 'Virtual V2)
   , hp             :: !(Field f (Limit Int))
@@ -175,6 +176,9 @@ class IsCommand a => IsLocationCommand a where
 class IsCommand a => IsInstantCommand a where
   fromInstant :: CommandParam a -> Ent -> Game (Attempt a)
 
+class IsInstantCommand a => IsPassiveCommand a where
+  endPassive :: CommandParam a -> a -> Game ()
+
 class IsCommand a => IsUnitCommand a where
   fromUnit :: CommandParam a -> Ent -> Ent -> Game (Attempt a)
 
@@ -197,6 +201,13 @@ data Command where
       => a
       -> Command
 
+data SomePassive where
+  SomePassive
+      :: IsPassiveCommand a
+      => CommandParam a
+      -> a
+      -> SomePassive
+
 
 data Commanding f where
   LocationCommand
@@ -211,6 +222,10 @@ data Commanding f where
       :: IsInstantCommand a
       => f a ()
       -> Commanding f
+  PassiveCommand
+      :: IsPassiveCommand a
+      => f a ()
+      -> Commanding f
   PlacementCommand
       :: IsPlacementCommand a
       => f a (Int, Int)
@@ -220,6 +235,7 @@ instance Show (Commanding f) where
   show (LocationCommand _)  = "LocationCommand"
   show (UnitCommand _)      = "UnitCommand"
   show (InstantCommand _)   = "InstantCommand"
+  show (PassiveCommand _)   = "PassiveCommand"
   show (PlacementCommand _) = "PlacementCommand"
 
 data Proxy2 a b = Proxy2

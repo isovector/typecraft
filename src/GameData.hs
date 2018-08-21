@@ -2,9 +2,81 @@
 
 module GameData where
 
-import AbilityUtils
-import Overture
-import Behavior
+import           AbilityUtils
+import           Behavior
+import           Linear.Matrix
+import qualified Linear.V2 as L
+import           Overture
+
+
+volcanoPassive :: Ent -> Task ()
+volcanoPassive e = do
+  Just v1 <- lift . eon e $ query pos
+  let v2 = v1 + V2 40 0
+
+  let sc         = 0.4
+      size       = 20
+      warning    = 0.2
+      dmg        = 100
+      waitPeriod = 0.75
+      height     = V2 0 300
+
+      volpos = v2 + V2 100 0 ^* sc
+
+      rotmat theta = L.V2 (L.V2 (cos theta)          (sin theta))
+                          (L.V2 (negate $ sin theta) (cos theta))
+
+  flip fix [1..] $ \f z ->  do
+    lift . explosion volpos waitPeriod
+         $ \d -> scale (d + 0.01)
+               . filled (rgba 1 0 0 $ 1 - d / 2)
+               . circle
+               $ 8 + d * 3
+
+    let dx = rotmat (fromIntegral (head z) * pi / 302 * 45) !* (V2 200 0)
+        pos = v2 + dx
+
+    lift . explosion volpos warning
+         $ \d -> move (-height ^* d)
+               . scale 0.4
+               . move (V2 (-32) (-30))
+               . toForm
+               $ image "assets/socks.png"
+
+    wait 1
+
+    lift . explosion pos 2
+         $ \d -> scale (d + 0.01)
+               . filled (rgba 0 0 0 $ 0.5 + d / 2)
+               . circle
+               $ 8 + d * 3
+
+    wait $ 2 - warning
+
+    lift . explosion pos warning
+         $ \d -> move (-height + height ^* d)
+               . scale 0.4
+               . move (V2 (-32) (-30))
+               . toForm
+               $ image "assets/socks.png"
+
+    wait warning
+
+    void . lift $ do
+      explosion pos waitPeriod
+        $ \d -> scale (d + 0.01)
+              . filled (rgba 1 0 0 $ 1 - d / 2)
+              . circle
+              $ 8 + d * 3
+
+      inRange <- fmap fst <$> getUnitsInRange pos size
+      eover (someEnts inRange)
+          . fmap ((),)
+          $ performDamage dmg
+
+    wait waitPeriod
+
+    f $ drop (head z `mod` 50) z
 
 
 mePlayer :: Player
@@ -85,6 +157,14 @@ buildCommandCenterWidget = CommandWidget
   , cwCommand = PlacementCommand $ Proxy2 @BuildCmd commandCenter
   , cwVisible = True
   , cwHotkey = Just CKey
+  }
+
+volcanoPassiveWidget :: CommandWidget
+volcanoPassiveWidget = CommandWidget
+  { cwName = "Eruption"
+  , cwCommand = PassiveCommand . Proxy2 @PassiveScriptCmd $ volcanoPassive
+  , cwVisible = False
+  , cwHotkey = Nothing
   }
 
 stdWidgets :: [CommandWidget]
