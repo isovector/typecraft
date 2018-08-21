@@ -62,7 +62,8 @@ data Keyboard = Keyboard
 data LocalState = LocalState
   { _lsSelBox      :: !(Maybe V2)
   , _lsPlayer      :: !Player
-  , _lsTasks       :: ![Task ()]
+  , _lsTasks       :: ![(Int, Task ())]
+  , _lsTaskId      :: !Int
   , _lsDynamic     :: !(QuadTree Ent Double)
   , _lsMap         :: !Map
   , _lsNavMesh     :: !NavMesh

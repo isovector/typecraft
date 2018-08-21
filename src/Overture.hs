@@ -125,16 +125,23 @@ pumpTasks :: Time -> Game ()
 pumpTasks dt = do
   tasks  <- gets _lsTasks
   modify $ lsTasks .~ []
-  tasks' <- fmap catMaybes . for tasks $ \task -> do
+  tasks' <- fmap catMaybes . for tasks $ \(i, task) -> do
     z <- resume task
     pure $ case z of
-      Left (Await f) -> Just $ f dt
+      Left (Await f) -> Just $ (i, f dt)
       Right _        -> Nothing
   modify $ lsTasks <>~ tasks'
 
 
-start :: Task () -> Game ()
-start t = modify $ lsTasks %~ (t :)
+start :: Task () -> Game Int
+start t = do
+  i <- gets _lsTaskId
+  modify $ lsTasks %~ ((i, t) :)
+  modify $ lsTaskId +~ 1
+  pure i
+
+stop :: Int -> Game ()
+stop i = modify $ lsTasks %~ filter ((/= i) . fst)
 
 
 vgetPos :: Ent -> Underlying (Maybe V2)

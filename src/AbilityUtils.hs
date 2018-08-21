@@ -13,7 +13,7 @@ explosion p dur draw = do
     { pos = Just p
     , gfx = Just $ draw 0
     }
-  start $ do
+  void . start $ do
     during dur $ \delta ->
       lift $ setEntity me unchanged
         { gfx = Set $ draw delta

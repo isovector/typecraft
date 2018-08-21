@@ -107,9 +107,9 @@ initialize = do
     , gridSize = Just (10, 7)
     }
 
-  start separateTask
-  start acquireTask
-  start $ volcanoPassive (volPos + V2 40 0) 0.4
+  void $ start separateTask
+  void $ start acquireTask
+  void . start $ volcanoPassive (volPos + V2 40 0) 0.4
 
 
 volcanoPassive :: V2 -> Double -> Task ()
@@ -401,6 +401,7 @@ main = play config (const $ run realState hooks initialize player update draw) p
           { _lsSelBox      = Nothing
           , _lsPlayer      = mePlayer
           , _lsTasks       = []
+          , _lsTaskId      = 0
           , _lsDynamic     = mkQuadTree (20, 20) (V2 800 600)
           , _lsMap         = theMap
           , _lsNavMesh     = mapNavMesh theMap

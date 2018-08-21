@@ -70,7 +70,7 @@ instance IsLocationCommand PsiStormCmd where
 
 instance IsCommand PsiStormCmd where
   pumpCommand _ _ (PsiStormCmd v2) = do
-    start $ do
+    void . start $ do
       let size       = 100
           dmg        = 100
           flashTime  = 0.1
