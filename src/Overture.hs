@@ -377,6 +377,9 @@ createEntity p = do
         Success a -> Just $ SomePassive param a
         _ -> Nothing
 
-  emap (anEnt e) $ pure unchanged { activePassives = Set sps' }
+  emap (anEnt e) $ pure unchanged
+    { activePassives = Set sps'
+    , isAlive = Set ()
+    }
   pure e
 

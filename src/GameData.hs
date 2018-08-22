@@ -8,6 +8,16 @@ import           Linear.Matrix
 import qualified Linear.V2 as L
 import           Overture
 
+marineProto :: Proto
+marineProto = newEntity
+  { attacks  = Just [gunAttackData]
+  , entSize  = Just 7
+  , acqRange = Just 125
+  , speed    = Just 150
+  , unitType = Just Unit
+  , hp       = Just $ Limit 100 100
+  , commands = Just stdWidgets
+  }
 
 volcanoPassive :: Ent -> Task ()
 volcanoPassive e = do
@@ -94,6 +104,7 @@ commandCenter = newEntity
   , classification = Just BuildingUnit
   , unitType       = Just Building
   , hp             = Just $ Limit 100 100
+  , commands       = Just [trainMarineWidget]
   }
 
 
@@ -166,6 +177,15 @@ volcanoPassiveWidget = CommandWidget
   , cwVisible = False
   , cwHotkey = Nothing
   }
+
+trainMarineWidget :: CommandWidget
+trainMarineWidget = CommandWidget
+  { cwName = "Train Marine"
+  , cwCommand = InstantCommand $ Proxy2 @TrainCmd marineProto
+  , cwVisible = True
+  , cwHotkey = Just AKey
+  }
+
 
 stdWidgets :: [CommandWidget]
 stdWidgets = [moveWidget, stopWidget, attackWidget, acquireWidget]

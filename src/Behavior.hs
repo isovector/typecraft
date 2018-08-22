@@ -22,6 +22,9 @@ data MoveCmd = MoveCmd [V2]
 data StopCmd = StopCmd
   deriving (Typeable)
 
+data TrainCmd = TrainCmd Proto
+  deriving Typeable
+
 data AttackCmd = AttackCmd
   { _acIx     :: Int
   , _acTarget :: Ent
@@ -45,6 +48,23 @@ data BuildCmd = BuildCmd
 makeLenses ''AttackCmd
 makeLenses ''AcquireCmd
 makeLenses ''BuildCmd
+
+instance IsCommand TrainCmd where
+  type CommandParam TrainCmd = Proto
+  pumpCommand _ e (TrainCmd proto) = do
+    Just (p, (_, ysize), o) <-
+      eon e $ (,,) <$> query pos
+                   <*> query gridSize
+                   <*> query owner
+    void $ createEntity proto
+     { pos   = Just $ p + V2 0 (fromIntegral (ysize + 1) * tileHeight)
+     , owner = Just o
+     }
+    pure Nothing
+
+instance IsInstantCommand TrainCmd where
+  fromInstant = pure . pure . pure . TrainCmd
+
 
 instance IsCommand PassiveScriptCmd where
   type CommandParam PassiveScriptCmd = Ent -> Task ()

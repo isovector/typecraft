@@ -66,17 +66,10 @@ initialize :: Game ()
 initialize = do
   for_ [0 .. 10] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
-    void $ createEntity newEntity
+    void $ createEntity marineProto
       { pos      = Just $ V2 (50 + i * 10 + bool 0 400 mine) (120 + i * 10)
-      , attacks  = Just [gunAttackData]
-      , entSize  = Just 7
-      , acqRange = Just 125
-      , speed    = Just 150
       , selected = bool Nothing (Just ()) mine
       , owner    = Just $ bool neutralPlayer mePlayer mine
-      , unitType = Just Unit
-      , hp       = Just $ Limit 100 100
-      , commands  = Just stdWidgets
       }
 
   issueUnit @AttackCmd () (Ent 0) (Ent 1)
@@ -192,7 +185,7 @@ playerNotWaiting mouse kb = do
       emap aliveEnts $ do
         p    <- query pos
         o    <- query owner
-        Unit <- query unitType
+        query unitType >>= guard . (/= Missile)
 
         guard $ not $ isEnemy lPlayer o
 
