@@ -351,7 +351,7 @@ recomputeNavMesh = do
     xy@(x, y) <- fmap (view $ from centerTileScreen) (query pos)
     (dx, dy)  <- query gridSize
     (,) <$> pure xy
-        <*> pure (x + dx, y + dy)
+        <*> pure (x + dx - 1, y + dy - 1)
 
   modify $ lsNavMesh .~ foldr (uncurry JP.closeArea) nm buildings
 

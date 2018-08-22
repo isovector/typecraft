@@ -97,6 +97,10 @@ instance IsCommand BuildCmd where
         { pos   = Just _bcPos
         , owner = Just o
         }
+      emap (anEnt e) $
+        pure unchanged
+          { pos = Set $ _bcPos - V2 0 tileHeight
+          }
       pure Nothing
 
 instance IsLocationCommand PsiStormCmd where
