@@ -16,7 +16,18 @@ marineProto = newEntity
   , speed    = Just 150
   , unitType = Just Unit
   , hp       = Just $ Limit 100 100
-  , commands = Just stdWidgets
+  , commands = Just $ harvestWidget : stdWidgets
+  }
+
+mineralsProto :: Proto
+mineralsProto = newEntity
+  { gfx = Just . move (V2 (tileWidth * 1.5) (tileHeight))
+               . filled (rgb 0 0 0)
+               $ rect (tileWidth * 3) (tileHeight * 2)
+  , entSize  = Just 14
+  , unitType = Just Building
+  , gridSize = Just (3, 2)
+  , resourceSource = Just (Minerals, pure 1000)
   }
 
 volcanoPassive :: Ent -> Task ()
@@ -105,6 +116,7 @@ commandCenter = newEntity
   , unitType       = Just Building
   , hp             = Just $ Limit 100 100
   , commands       = Just [trainMarineWidget]
+  , isDepot        = Just ()
   }
 
 
@@ -184,6 +196,14 @@ trainMarineWidget = CommandWidget
   , cwCommand = InstantCommand $ Proxy2 @TrainCmd marineProto
   , cwVisible = True
   , cwHotkey = Just AKey
+  }
+
+harvestWidget :: CommandWidget
+harvestWidget = CommandWidget
+  { cwName = "Harvest"
+  , cwCommand = UnitCommand $ Proxy2 @HarvestCmd ()
+  , cwVisible = True
+  , cwHotkey = Just HKey
   }
 
 

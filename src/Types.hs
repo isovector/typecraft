@@ -75,7 +75,11 @@ data Limit a = Limit
   { _limVal :: !a
   , _limMax :: !a
   }
-  deriving (Eq, Ord, Show)
+  deriving (Eq, Ord, Show, Functor)
+
+instance Applicative Limit where
+  pure a = Limit a a
+  Limit fa fb <*> Limit a b = Limit (fa a) (fb b)
 
 
 data AttackData = AttackData
@@ -144,12 +148,17 @@ data EntWorld f = World
   , classification :: !(Field f Classification)
   , commands       :: !(Field f [CommandWidget])
   , activePassives :: !(Field f [SomePassive])
+  , isDepot        :: !(Flag f)
 
   , pos            :: !(Component f 'Virtual V2)
   , hp             :: !(Field f (Limit Int))
   , currentCommand :: !(Field f Command)
+  , resourceSource :: !(Field f (Resource, Limit Int))
   }
   deriving (Generic)
+
+data Resource = Minerals
+  deriving (Eq, Ord, Show)
 
 
 type World = EntWorld ('WorldOf Underlying)

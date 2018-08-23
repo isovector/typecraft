@@ -75,6 +75,10 @@ initialize = do
   issueUnit @AttackCmd () (Ent 0) (Ent 1)
   issueUnit @AttackCmd () (Ent 9) (Ent 10)
 
+  void $ createEntity mineralsProto
+    { pos      = Just $ V2 (tileWidth * 16) (tileHeight * 15)
+    }
+
   void $ createEntity newEntity
     { pos      = Just $ V2 700 300
     , attacks  = Just [gunAttackData]

@@ -383,3 +383,10 @@ createEntity p = do
     }
   pure e
 
+resetLimit :: Limit a -> Limit a
+resetLimit (Limit _ b) = Limit b b
+
+-- TODO(sandy): implement resources
+acquireResources :: Player -> Resource -> Int -> Game ()
+acquireResources _ _ _ = pure ()
+

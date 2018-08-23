@@ -25,6 +25,18 @@ data StopCmd = StopCmd
 data TrainCmd = TrainCmd Proto
   deriving Typeable
 
+data HarvestCmd = HarvestCmd
+  { _hcMove     :: Maybe MoveCmd
+  , _hcMineTime :: Limit Time
+  , _hcState    :: HarvestState
+  , _hcHarvestEnt :: Ent
+  , _hcReturnEnt :: Ent
+  } deriving Typeable
+
+data HarvestState
+  = HarvestCollect
+  | HarvestReturn
+
 data AttackCmd = AttackCmd
   { _acIx     :: Int
   , _acTarget :: Ent
@@ -45,9 +57,80 @@ data BuildCmd = BuildCmd
   } deriving (Typeable)
 
 
+makeLenses ''HarvestCmd
 makeLenses ''AttackCmd
 makeLenses ''AcquireCmd
 makeLenses ''BuildCmd
+
+-- TODO(sandy): move to other patches
+-- TODO(sandy): be more resiliant for pathing issues
+instance IsCommand HarvestCmd where
+  pumpCommand dt e hc@HarvestCmd{..} = do
+    let harvestAmount = 8
+
+    case (_hcMove, _hcState) of
+      (Just mcmd, _) -> do
+        mcmd' <- pumpCommand dt e mcmd
+        pure . Just $ hc & hcMove .~ mcmd'
+      (Nothing, HarvestReturn) -> do
+        Just o <- eon e $ query owner
+        Just (rs, _) <- eon _hcHarvestEnt $ query resourceSource
+        acquireResources o rs harvestAmount
+
+        Just harvestPos <- eon _hcHarvestEnt $ query pos
+        Success mcmd <- fromLocation () e
+                      $ harvestPos + V2 0 tileHeight ^* 2
+
+        pure . Just $ hc & hcMove  .~ Just mcmd
+                         & hcState .~ HarvestCollect
+
+      (Nothing, HarvestCollect) -> do
+        let mineTime' = _hcMineTime & limVal -~ dt
+        case _limVal mineTime' <= 0 of
+          True -> do
+            mpos <- eon _hcReturnEnt (query pos)
+            for mpos $ \retPos -> do
+              Success mcmd <- fromLocation () e
+                            $ retPos - V2 0 tileHeight
+
+              emap (anEnt _hcHarvestEnt) $ do
+                rs <- query resourceSource
+                pure unchanged
+                  { resourceSource = Set $ rs & _2 . limVal -~ harvestAmount
+                  }
+
+              pure $ hc & hcMove     .~ Just mcmd
+                        & hcState    .~ HarvestReturn
+                        & hcMineTime %~ resetLimit
+          False -> pure . Just $ hc & hcMineTime .~ mineTime'
+
+instance IsUnitCommand HarvestCmd where
+  fromUnit _ e h = do
+    let harvestTime = 1.5
+
+    Just (p, o) <- eon e $ (,) <$> query pos
+                               <*> query owner
+    depots <- efor aliveEnts $ do
+      with isDepot
+      query owner >>= guard . (== o)
+      (,) <$> queryEnt <*> query pos
+
+    let nearestDepot =
+          listToMaybe $ sortBy (comparing $ quadrance . (p -) . snd) depots
+    case nearestDepot of
+      Just (depot, _) -> do
+        Just harvestPos <- eon h $ query pos
+        Success mcmd <- fromLocation () e
+                      $ harvestPos + V2 0 tileHeight ^* 2
+        pure . pure $ HarvestCmd (Just mcmd)
+                                 (pure harvestTime)
+                                 HarvestCollect
+                                 h
+                                 depot
+      Nothing -> pure $ Failure "No depots available!"
+
+
+
 
 instance IsCommand TrainCmd where
   type CommandParam TrainCmd = Proto
