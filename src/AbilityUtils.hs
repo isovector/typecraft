@@ -23,7 +23,7 @@ explosion p dur draw = do
 
 findTarget :: Target -> Game (Maybe V2)
 findTarget (TargetGround v2) = pure $ Just v2
-findTarget (TargetUnit e)    = lift $ vgetPos e
+findTarget (TargetUnit e)    = eon e $ query pos
 
 
 doDamage :: Maybe Double -> Int -> DamageHandler
@@ -51,7 +51,7 @@ performDamage dmg = do
 
 missile :: EntWorld 'FieldOf -> DamageHandler -> Ability
 missile proto fx attacker t = do
-  mpos0 <- lift . lift $ vgetPos attacker
+  mpos0 <- lift . eon attacker $ query pos
   mtpos <- lift $ findTarget t
   case (mpos0, mtpos) of
     (Just pos0, Just tpos) -> do
@@ -65,7 +65,7 @@ missile proto fx attacker t = do
         pure . isNothing $ currentCommand me
 
       lift $ do
-        Just pos' <- lift $ vgetPos ment
+        Just pos' <- eon ment $ query pos
         fx pos' t
         setEntity ment delEntity
     _ -> pure ()

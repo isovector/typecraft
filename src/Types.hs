@@ -77,7 +77,7 @@ data Limit a = Limit
   { _limVal :: !a
   , _limMax :: !a
   }
-  deriving (Eq, Ord, Show, Functor)
+  deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
 instance Applicative Limit where
   pure a = Limit a a

@@ -17,7 +17,6 @@ module Overture
   , module Control.Monad.State.Class
   , module Control.Monad.Trans.Class
   , coerce
-  , biplate
   ) where
 
 import qualified Algorithm.Search.JumpPoint as JP
@@ -27,13 +26,12 @@ import           Control.Monad.State.Class (MonadState, get, gets, put, modify)
 import           Control.Monad.State.Strict (runState)
 import           Control.Monad.Trans.Class (lift)
 import           Data.Coerce
-import           Data.Data.Lens (biplate)
 import qualified Data.Ecstasy as E
 import           Data.Ecstasy hiding (newEntity, createEntity)
 import           Data.Ecstasy.Internal (surgery)
 import qualified Data.Ecstasy.Types as E
-import qualified Data.IntMap.Strict as IM
 import qualified Data.IntMap.Internal as IMI
+import qualified Data.IntMap.Strict as IM
 import           Game.Sequoia hiding (form)
 import           Game.Sequoia.Utils (showTrace)
 import           Game.Sequoia.Window (MouseButton (..))
@@ -41,19 +39,13 @@ import           Linear (norm, normalize, (*^), (^*), quadrance, M22)
 import qualified QuadTree.QuadTree as QT
 import           Types
 
+
 nmIsOpen :: NavMesh -> (Int, Int) -> Bool
 nmIsOpen = JP.isTileOpen
 
+
 nmFind :: NavMesh -> (Int, Int) -> (Int, Int) -> Maybe [(Int, Int)]
 nmFind = JP.findPath
-
-
-unitScript :: Ent -> Task a -> Task ()
-unitScript ent f = fix $ \loop -> do
-  z <- lift . runQueryT ent $ query isAlive
-  for_ z . const $ do
-    void f
-    loop
 
 
 newEntity :: EntWorld  'FieldOf
@@ -137,6 +129,7 @@ traverseMaybeWithKey f (IMI.Tip k x) =
 traverseMaybeWithKey _ IMI.Nil =
   pure IMI.Nil
 
+
 pumpTasks :: Time -> Game ()
 pumpTasks dt = do
   tasks  <- gets _lsTasks
@@ -157,32 +150,9 @@ start t = do
   modify $ lsTaskId +~ 1
   pure i
 
+
 stop :: Int -> Game ()
 stop i = modify $ lsTasks %~ IM.delete i
-
-
-vgetPos :: Ent -> Underlying (Maybe V2)
-vgetPos e = do
-  dyn <- gets _lsDynamic
-  pure $ QT.getLoc dyn e
-
-
-vsetPos :: Ent -> Update V2 -> Underlying ()
-vsetPos e (Set p) = modify $ lsDynamic %~ \qt -> QT.move qt e p
-vsetPos e Unset = modify $ lsDynamic %~ \qt -> QT.remove qt e
-vsetPos _ Keep = pure ()
-
-
-vgetEntSize :: Ent -> Underlying (Maybe Double)
-vgetEntSize e = do
-  dyn <- gets _lsDynamic
-  pure $ QT.getSize dyn e
-
-
-vsetEntSize :: Ent -> Update Double -> Underlying ()
-vsetEntSize e (Set x) = modify $ lsDynamic %~ \qt -> QT.setSize qt e x
-vsetEntSize e Unset = modify $ lsDynamic %~ \qt -> QT.removeSize qt e
-vsetEntSize _ Keep = pure ()
 
 
 wait :: Time -> Task ()
@@ -299,6 +269,7 @@ issueInstant
 issueInstant param e =
   fromInstant @a param e >>= resolveAttempt e
 
+
 issueLocation
     :: forall a
      . IsLocationCommand a
@@ -309,6 +280,7 @@ issueLocation
 issueLocation param e v2 =
   fromLocation @a param e v2 >>= resolveAttempt e
 
+
 issueUnit
     :: forall a
      . IsUnitCommand a
@@ -318,6 +290,7 @@ issueUnit
     -> Game ()
 issueUnit param e t =
   fromUnit @a param e t >>= resolveAttempt e
+
 
 issuePlacement
     :: forall a
@@ -377,6 +350,7 @@ isPassiveCommand :: Commanding f -> Bool
 isPassiveCommand (PassiveCommand _) = True
 isPassiveCommand _ = False
 
+
 getPassives :: Proto -> [Commanding Proxy2]
 getPassives
   = maybe [] id
@@ -384,6 +358,7 @@ getPassives
   . commands
 
 
+-- TODO(sandy): make this a hook
 createEntity :: Proto -> Game Ent
 createEntity p = do
   let ps = getPassives p
@@ -400,8 +375,10 @@ createEntity p = do
     }
   pure e
 
+
 resetLimit :: Limit a -> Limit a
 resetLimit (Limit _ b) = Limit b b
+
 
 -- TODO(sandy): implement resources
 acquireResources :: Player -> Resource -> Int -> Game ()

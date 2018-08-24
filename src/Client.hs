@@ -16,6 +16,7 @@ import qualified Data.Set as S
 import           Game.Sequoia.Keyboard
 import           Game.Sequoia.Window (mousePos, mouseButtons)
 import           Overture hiding (init)
+import qualified QuadTree.QuadTree as QT
 
 
 gameWidth :: Num t => t
@@ -126,4 +127,32 @@ loadWaiting cmd = do
       modify $ lsCommandCont ?~ do
         PlacementCommand . GameCont @a param $ \i ->
           for_ sel $ \e -> issuePlacement @a param e i
+
+
+vgetPos :: Ent -> Underlying (Maybe V2)
+vgetPos e = do
+  dyn <- gets _lsDynamic
+  pure $ QT.getLoc dyn e
+
+
+vsetPos :: Ent -> Update V2 -> Underlying ()
+vsetPos e (Set p) =
+  modify $ lsDynamic %~ \qt -> QT.move qt e p
+vsetPos e Unset =
+  modify $ lsDynamic %~ \qt -> QT.remove qt e
+vsetPos _ Keep = pure ()
+
+
+vgetEntSize :: Ent -> Underlying (Maybe Double)
+vgetEntSize e = do
+  dyn <- gets _lsDynamic
+  pure $ QT.getSize dyn e
+
+
+vsetEntSize :: Ent -> Update Double -> Underlying ()
+vsetEntSize e (Set x) =
+  modify $ lsDynamic %~ \qt -> QT.setSize qt e x
+vsetEntSize e Unset =
+  modify $ lsDynamic %~ \qt -> QT.removeSize qt e
+vsetEntSize _ Keep = pure ()
 
