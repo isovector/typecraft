@@ -23,6 +23,7 @@ import           Control.Monad.Coroutine
 import           Control.Monad.Coroutine.SuspensionFunctors
 import           Control.Monad.State.Strict
 import           Data.Ecstasy
+import qualified Data.IntMap.Strict as IM
 import           Data.Typeable
 import           Game.Sequoia
 import           Game.Sequoia.Keyboard
@@ -62,7 +63,8 @@ data Keyboard = Keyboard
 data LocalState = LocalState
   { _lsSelBox      :: !(Maybe V2)
   , _lsPlayer      :: !Player
-  , _lsTasks       :: ![(Int, Task ())]
+  , _lsTasks       :: !(IM.IntMap (Task ()))
+  , _lsNewTasks    :: ![(Int, Task ())]
   , _lsTaskId      :: !Int
   , _lsDynamic     :: !(QuadTree Ent Double)
   , _lsMap         :: !Map

@@ -33,6 +33,7 @@ import           Data.Ecstasy hiding (newEntity, createEntity)
 import           Data.Ecstasy.Internal (surgery)
 import qualified Data.Ecstasy.Types as E
 import qualified Data.IntMap.Strict as IM
+import qualified Data.IntMap.Internal as IMI
 import           Game.Sequoia hiding (form)
 import           Game.Sequoia.Utils (showTrace)
 import           Game.Sequoia.Window (MouseButton (..))
@@ -121,27 +122,43 @@ toV2 :: (Int, Int) -> V2
 toV2 = uncurry V2 . (fi *** fi)
 
 
+traverseMaybeWithKey
+    :: Monad m
+    => (IMI.Key -> a -> m (Maybe b))
+    -> IMI.IntMap a
+    -> m (IMI.IntMap b)
+traverseMaybeWithKey f (IMI.Bin p m l r) =
+  IMI.bin p m <$> traverseMaybeWithKey f l
+              <*> traverseMaybeWithKey f r
+traverseMaybeWithKey f (IMI.Tip k x) =
+  f k x >>= pure . \case
+    Just y  -> IMI.Tip k y
+    Nothing -> IMI.Nil
+traverseMaybeWithKey _ IMI.Nil =
+  pure IMI.Nil
+
 pumpTasks :: Time -> Game ()
 pumpTasks dt = do
   tasks  <- gets _lsTasks
-  modify $ lsTasks .~ []
-  tasks' <- fmap catMaybes . for tasks $ \(i, task) -> do
+  tasks' <- flip traverseMaybeWithKey tasks $ \_ task -> do
     z <- resume task
     pure $ case z of
-      Left (Await f) -> Just $ (i, f dt)
+      Left (Await f) -> Just $ f dt
       Right _        -> Nothing
-  modify $ lsTasks <>~ tasks'
+  newTasks <- gets _lsNewTasks
+  modify $ lsTasks .~ tasks' <> IM.fromList newTasks
+  modify $ lsNewTasks .~ []
 
 
 start :: Task () -> Game Int
 start t = do
   i <- gets _lsTaskId
-  modify $ lsTasks %~ ((i, t) :)
+  modify $ lsNewTasks %~ ((i, t) :)
   modify $ lsTaskId +~ 1
   pure i
 
 stop :: Int -> Game ()
-stop i = modify $ lsTasks %~ filter ((/= i) . fst)
+stop i = modify $ lsTasks %~ IM.delete i
 
 
 vgetPos :: Ent -> Underlying (Maybe V2)
