@@ -1,14 +1,17 @@
-{-# LANGUAGE DeriveDataTypeable #-}
-{-# LANGUAGE DeriveFunctor      #-}
-{-# LANGUAGE FlexibleContexts   #-}
-{-# LANGUAGE LambdaCase         #-}
-{-# LANGUAGE NoImplicitPrelude  #-}
-{-# LANGUAGE TemplateHaskell    #-}
+{-# LANGUAGE DeriveDataTypeable  #-}
+{-# LANGUAGE DeriveFunctor       #-}
+{-# LANGUAGE FlexibleContexts    #-}
+{-# LANGUAGE LambdaCase          #-}
+{-# LANGUAGE NoImplicitPrelude   #-}
+{-# LANGUAGE RankNTypes          #-}
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE TemplateHaskell     #-}
 
 module Behavior where
 
 import Overture
 import AbilityUtils
+import Control.Monad.Trans.Maybe
 
 data PsiStormCmd = PsiStormCmd V2
   deriving Typeable
@@ -61,6 +64,32 @@ makeLenses ''HarvestCmd
 makeLenses ''AttackCmd
 makeLenses ''AcquireCmd
 makeLenses ''BuildCmd
+
+harvestScript
+    :: Ent
+    -> Ent
+    -> Ent
+    -> Task ()
+harvestScript h _depot e = fix $ \loop -> do
+  let lifting = lift . lift
+  (>>= maybe (pure ()) (const loop)) . runMaybeT $ do
+    Just harvestPos <-
+      lifting . eon h $ query pos
+    Success mcmd <-
+      lifting . fromLocation @MoveCmd () e
+              $ harvestPos + V2 0 tileHeight ^* 2
+    lift $ runCommand e mcmd
+
+
+
+
+--   mpos <- eon _hcReturnEnt (query pos)
+--   for mpos $ \retPos -> do
+--     Success mcmd <- fromLocation () e
+--                   $ retPos - V2 0 tileHeight
+--     undefined
+
+
 
 -- TODO(sandy): move to other patches
 -- TODO(sandy): be more resiliant for pathing issues
@@ -157,8 +186,9 @@ instance IsInstantCommand PassiveScriptCmd where
   fromInstant t e =
     fmap (Success . PassiveScriptCmd) . start $ t e
 
-instance IsPassiveCommand PassiveScriptCmd where
-  endPassive _ (PassiveScriptCmd i) = stop i
+instance IsChannelCommand PassiveScriptCmd where
+  endChannel _ (PassiveScriptCmd i) = stop i
+
 
 instance IsPlacementCommand BuildCmd where
   fromPlacement proto e i = do

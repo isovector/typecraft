@@ -3,6 +3,7 @@
 module GameData where
 
 import           AbilityUtils
+import           AnimBank
 import           Behavior
 import           Linear.Matrix
 import qualified Linear.V2 as L
@@ -17,6 +18,18 @@ marineProto = newEntity
   , unitType = Just Unit
   , hp       = Just $ Limit 100 100
   , commands = Just $ harvestWidget : stdWidgets
+  }
+
+garethProto :: Proto
+garethProto = newEntity
+  { attacks  = Just [gunAttackData]
+  , entSize  = Just 7
+  , acqRange = Just 125
+  , speed    = Just 150
+  , unitType = Just Unit
+  , hp       = Just $ Limit 100 100
+  , commands = Just $ harvestWidget : stdWidgets
+  , art      = Just $ Art __garethIdle 0 0.05
   }
 
 mineralsProto :: Proto

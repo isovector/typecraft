@@ -4,6 +4,7 @@
 
 module Main where
 
+import           Art
 import           Behavior
 import           Client
 import           Control.Monad.Trans.Writer (WriterT (..))
@@ -72,6 +73,11 @@ initialize = do
       , owner    = Just $ bool neutralPlayer mePlayer mine
       }
 
+  void $ createEntity garethProto
+    { pos      = Just $ V2 450 400
+    , owner    = Just mePlayer
+    }
+
   issueUnit @AttackCmd () (Ent 0) (Ent 1)
   issueUnit @AttackCmd () (Ent 9) (Ent 10)
 
@@ -125,6 +131,12 @@ update :: Time -> Game ()
 update dt = do
   pumpTasks dt
   updateCommands dt
+
+  emap (entsWith art) $ do
+    a <- query art
+    pure unchanged
+      { art = Set $ a & aTime +~ dt
+      }
 
   -- death to infidels
   toKill <- efor aliveEnts $ do
@@ -246,25 +258,33 @@ draw mouse = fmap (cull . DL.toList . fst)
   void . efor aliveEnts $ do
     p  <- query pos
     z  <- queryFlag selected
+    sz <- queryDef 10 entSize
+    emit p . boolMonoid z
+           . traced' (rgb 0 1 0)
+           . circle
+           $ sz + 5
+
+  void . efor aliveEnts $ do
+    without gfx
+    without art
+    p  <- query pos
     o  <- queryDef neutralPlayer owner
     ut <- query unitType
     sz <- queryDef 10 entSize
     (gw, gh) <- queryDef (0, 0) gridSize
 
     let col = pColor o
-    emit p $ group
-      [ boolMonoid z $ traced' (rgb 0 1 0) $ circle $ sz + 5
-      , case ut of
-          Unit     -> filled col $ circle sz
-          Missile  -> filled (rgb 0 0 0) $ circle 2
-          Building -> filled (rgba 1 0 0 0.5)
-                    $ polygon
-                      [ (0,  0)  ^. centerTileScreen
-                      , (gw, 0)  ^. centerTileScreen
-                      , (gw, gh) ^. centerTileScreen
-                      , (0,  gh) ^. centerTileScreen
-                      ]
-      ]
+    emit p $
+      case ut of
+        Unit     -> filled col $ circle sz
+        Missile  -> filled (rgb 0 0 0) $ circle 2
+        Building -> filled (rgba 1 0 0 0.5)
+                  $ polygon
+                    [ (0,  0)  ^. centerTileScreen
+                    , (gw, 0)  ^. centerTileScreen
+                    , (gw, gh) ^. centerTileScreen
+                    , (0,  gh) ^. centerTileScreen
+                    ]
 
     -- debug draw
     void . optional $ do
@@ -288,9 +308,15 @@ draw mouse = fmap (cull . DL.toList . fst)
       emit ((x, y) ^. centerTileScreen) f
 
   void . efor aliveEnts $ do
+    without art
     p <- query pos
     g <- query gfx
     emit p g
+
+  void . efor aliveEnts $ do
+    p <- query pos
+    a <- query art
+    emit p $ drawArt a Nothing
 
   -- draw placement command
   gets _lsCommandCont >>= \case
@@ -326,7 +352,7 @@ main = play config (const $ run realState hooks initialize player update draw) p
           for_ (gridSize everything) . const . start $ lift recomputeNavMesh
           for_ (activePassives everything)
             . traverse_
-            $ \(SomePassive param (a :: a)) -> endPassive @a param a
+            $ \(SomePassive param (a :: a)) -> endChannel @a param a
       }
 
     realState = LocalState

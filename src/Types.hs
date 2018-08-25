@@ -7,6 +7,7 @@
 {-# LANGUAGE DeriveTraversable        #-}
 {-# LANGUAGE StandaloneDeriving       #-}
 {-# LANGUAGE TemplateHaskell          #-}
+{-# LANGUAGE UndecidableInstances     #-}
 {-# OPTIONS_GHC -funbox-strict-fields #-}
 
 module Types
@@ -15,6 +16,7 @@ module Types
   , resume
   , Await (..)
   , Key (..)
+  , Schema
   ) where
 
 import qualified Algorithm.Search.JumpPoint as JP
@@ -24,6 +26,7 @@ import           Control.Monad.Coroutine.SuspensionFunctors
 import           Control.Monad.State.Strict
 import           Data.Ecstasy
 import qualified Data.IntMap.Strict as IM
+import           Data.Spriter.Types
 import           Data.Typeable
 import           Game.Sequoia
 import           Game.Sequoia.Keyboard
@@ -133,7 +136,7 @@ data Player = Player
   deriving (Eq)
 
 
-type Flag f = Component f 'Field ()
+type Flag  f   = Component f 'Field ()
 type Field f a = Component f 'Field a
 
 data EntWorld f = World
@@ -156,6 +159,7 @@ data EntWorld f = World
   , hp             :: !(Field f (Limit Int))
   , currentCommand :: !(Field f Command)
   , resourceSource :: !(Field f (Resource, Limit Int))
+  , art            :: !(Field f Art)
   }
   deriving (Generic)
 
@@ -187,8 +191,8 @@ class IsCommand a => IsLocationCommand a where
 class IsCommand a => IsInstantCommand a where
   fromInstant :: CommandParam a -> Ent -> Game (Attempt a)
 
-class IsInstantCommand a => IsPassiveCommand a where
-  endPassive :: CommandParam a -> a -> Game ()
+class IsCommand a => IsChannelCommand a where
+  endChannel :: CommandParam a -> a -> Game ()
 
 class IsCommand a => IsUnitCommand a where
   fromUnit :: CommandParam a -> Ent -> Ent -> Game (Attempt a)
@@ -211,6 +215,15 @@ data Command where
       :: IsCommand a
       => a
       -> Command
+
+instance IsCommand Command where
+  pumpCommand dt e (SomeCommand a) =
+    fmap SomeCommand <$> pumpCommand dt e a
+
+
+class    (IsChannelCommand a, IsInstantCommand a) => IsPassiveCommand a
+instance (IsChannelCommand a, IsInstantCommand a) => IsPassiveCommand a
+
 
 data SomePassive where
   SomePassive
@@ -269,11 +282,27 @@ data CommandWidget = CommandWidget
   , cwHotkey  :: Maybe Key
   } deriving (Show)
 
+data Art = Art
+  { _aCanned :: CannedAnim
+  , _aTime   :: Time
+  , _aScale  :: Double
+  } deriving (Eq)
+
+data CannedAnim = CannedAnim
+  { _aSchema    :: Schema
+  , _aEntity    :: EntityName
+  , _aAnim      :: AnimationName
+  , _aSpeedMult :: Double
+  , _aRepeat    :: Bool
+  } deriving (Eq)
+
 
 
 makeLenses ''LocalState
 makeLenses ''AttackData
 makeLenses ''Limit
+makeLenses ''Art
+makeLenses ''CannedAnim
 
 makePrisms ''UnitType
 

@@ -162,6 +162,13 @@ wait t | t <= 0 = pure ()
            wait $ t - dt
 
 
+runCommand :: IsCommand a => Ent -> a -> Task ()
+runCommand e cmd = do
+  dt <- await
+  lift (pumpCommand dt e cmd) >>=
+    do traverse_ $ \cmd' -> runCommand e cmd'
+
+
 waitUntil :: Game Bool -> Task ()
 waitUntil what = do
   fix $ \f -> do
