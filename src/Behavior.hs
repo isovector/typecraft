@@ -67,10 +67,12 @@ harvestScript e h = fix $ \loop -> do
 
   let lifting = lift . lift
   (>>= maybe (pure ()) (const loop)) . runMaybeT $ do
-    lifting (eon e $ (,,) <$> query powerup
-                          <*> query pos
-                          <*> query owner) >>= \case
-      Just ((rs, num), p, o) -> do
+    eEntity <- lifting $ getEntity e
+    case powerup eEntity of
+      Just ((rs, num)) -> do
+        o <- hoistMaybe $ owner eEntity
+        p <- hoistMaybe $ pos eEntity
+
         depots <- lifting . efor aliveEnts $ do
           with isDepot
           query owner >>= guard . (== o)
@@ -82,22 +84,22 @@ harvestScript e h = fix $ \loop -> do
                       . sortBy (comparing $ quadrance . (p -) . snd)
                       $ depots
 
-        Just depotPos <-
-          lifting . eon nearestDepot $ query pos
+        Just depotPos <- lifting . eon nearestDepot $ query pos
         Success mcmd <-
           lifting . fromLocation @MoveCmd () e
                   $ depotPos - V2 0 tileHeight
         lift $ runCommand e mcmd
         lifting $ do
           acquireResources o rs num
-          emap (anEnt e) . pure $ unchanged
+          setEntity e unchanged
             { powerup = Unset
             }
 
-
       Nothing -> do
-        Just harvestPos <-
-          lifting . eon h $ query pos
+        hEntity    <- lifting $ getEntity h
+        harvestPos <- hoistMaybe $ pos hEntity
+        rs         <- hoistMaybe $ resourceSource hEntity
+
         Success mcmd <-
           lifting . fromLocation @MoveCmd () e
                   $ harvestPos + V2 0 tileHeight ^* 2
@@ -106,16 +108,12 @@ harvestScript e h = fix $ \loop -> do
           for_ [0..numPeriods] . const $ wait periodTime
 
         lifting $ do
-          [rs] <- eover (anEnt h) $ do
-            rs <- query resourceSource
-            pure . (rs,) $ unchanged
-              { resourceSource = Set $ rs & _2 . limVal -~ harvestAmount
-              }
-
-          emap (anEnt e) $ do
-            pure unchanged
-              { powerup = Set (fst rs, harvestAmount)
-              }
+          setEntity h unchanged
+            { resourceSource = Modify $ _2 . limVal -~ harvestAmount
+            }
+          setEntity e unchanged
+            { powerup = Set (fst rs, harvestAmount)
+            }
 
 
 instance IsCommand TrainCmd where
@@ -175,10 +173,9 @@ instance IsCommand BuildCmd where
         { pos   = Just _bcPos
         , owner = Just o
         }
-      emap (anEnt e) $
-        pure unchanged
-          { pos = Set $ _bcPos - V2 0 tileHeight
-          }
+      setEntity e unchanged
+        { pos = Set $ _bcPos - V2 0 tileHeight
+        }
       pure Nothing
 
 instance IsLocationCommand PsiStormCmd where
@@ -322,13 +319,10 @@ instance IsCommand AttackCmd where
                 cooldown'' = bool cooldown' (a ^. aCooldown.limMax) refresh
                 action     = bool Nothing (Just $ _aTask a e (TargetUnit t)) refresh
             for_ action start
-            emap (anEnt e) $ do
-              as <- query attacks
-              pure unchanged
-                { attacks = Set $ as & ix _acIx . aCooldown.limVal .~ cooldown''
-                }
-            pure . Just $
-              ac & acPath .~ Nothing
+            setEntity e unchanged
+              { attacks = Modify $ ix _acIx . aCooldown.limVal .~ cooldown''
+              }
+            pure . Just $ ac & acPath .~ Nothing
 
           -- not in range
           False -> do

@@ -262,7 +262,7 @@ updateCommands dt = do
   cmds <- efor allEnts $ (,) <$> queryEnt <*> query currentCommand
   for_ cmds $ \(e, cmd) -> do
     mcmd' <- pumpSomeCommand dt e cmd
-    emap (anEnt e) $ pure unchanged
+    setEntity e unchanged
       { currentCommand = maybe Unset Set mcmd'
       }
 
@@ -319,8 +319,9 @@ resolveAttempt e (Success cmd) = do
   (eon e $ query currentCommand) >>= \case
     Just (SomeCommand oldCmd) -> endCommand oldCmd
     Nothing -> pure ()
-  emap (anEnt e) $ pure unchanged
-    { currentCommand = Set $ SomeCommand cmd }
+  setEntity e unchanged
+    { currentCommand = Set $ SomeCommand cmd
+    }
 
 resolveAttempt _ Attempted = pure ()
 resolveAttempt _ (Failure err) = do
@@ -328,13 +329,9 @@ resolveAttempt _ (Failure err) = do
   pure ()
 
 
-fromAttempt :: forall a. Typeable a => Attempt a -> a
-fromAttempt (Success a) = a
-fromAttempt _ = error $ mconcat
-  [ "fromAttempt failed (for type "
-  , show . typeRep $ Proxy @a
-  , ")"
-  ]
+attemptToMaybe :: Attempt a -> Maybe a
+attemptToMaybe (Success a) = Just a
+attemptToMaybe _ = Nothing
 
 
 eon
@@ -380,7 +377,7 @@ createEntity p = do
         Success a -> Just $ SomeCommand a
         _ -> Nothing
 
-  emap (anEnt e) $ pure unchanged
+  setEntity e unchanged
     { activePassives = Set sps'
     , isAlive = Set ()
     }

@@ -140,6 +140,11 @@ vsetPos e (Set p) =
   modify $ lsDynamic %~ \qt -> QT.move qt e p
 vsetPos e Unset =
   modify $ lsDynamic %~ \qt -> QT.remove qt e
+vsetPos e (Modify f) = do
+  pp <- vgetPos e
+  case pp of
+    Just p -> modify $ lsDynamic %~ \qt -> QT.move qt e $ f p
+    Nothing -> pure ()
 vsetPos _ Keep = pure ()
 
 
@@ -154,5 +159,10 @@ vsetEntSize e (Set x) =
   modify $ lsDynamic %~ \qt -> QT.setSize qt e x
 vsetEntSize e Unset =
   modify $ lsDynamic %~ \qt -> QT.removeSize qt e
+vsetEntSize e (Modify f) = do
+  pp <- vgetEntSize e
+  case pp of
+    Just x -> modify $ lsDynamic %~ \qt -> QT.setSize qt e $ f x
+    Nothing -> pure ()
 vsetEntSize _ Keep = pure ()
 
