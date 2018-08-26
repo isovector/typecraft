@@ -14,7 +14,7 @@ cabal-version:       >=1.10
 
 executable typecraft
   main-is:             Main.hs
-  other-modules: AbilityUtils, Behavior, Types, Client, Overture, GameData, Map, QuadTree.QuadTree, Art, AnimBank
+  other-modules: AbilityUtils, Behavior, Types, Client, Overture, GameData, Map, QuadTree.QuadTree, Art, AnimBank, Behavior.Scripts
   ghc-options: -Wall
   default-extensions: DataKinds
                     , FlexibleInstances
