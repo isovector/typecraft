@@ -152,14 +152,16 @@ data EntWorld f = World
   , isAlive        :: !(Field f ())
   , classification :: !(Field f Classification)
   , commands       :: !(Field f [CommandWidget])
-  , activePassives :: !(Field f [SomePassive])
+  , activePassives :: !(Field f [Command])
   , isDepot        :: !(Flag f)
+
+  , art            :: !(Field f Art)
 
   , pos            :: !(Component f 'Virtual V2)
   , hp             :: !(Field f (Limit Int))
   , currentCommand :: !(Field f Command)
   , resourceSource :: !(Field f (Resource, Limit Int))
-  , art            :: !(Field f Art)
+  , powerup        :: !(Field f (Resource, Int))
   }
   deriving (Generic)
 
@@ -191,9 +193,6 @@ class IsCommand a => IsLocationCommand a where
 class IsCommand a => IsInstantCommand a where
   fromInstant :: CommandParam a -> Ent -> Game (Attempt a)
 
-class IsCommand a => IsChannelCommand a where
-  endChannel :: CommandParam a -> a -> Game ()
-
 class IsCommand a => IsUnitCommand a where
   fromUnit :: CommandParam a -> Ent -> Ent -> Game (Attempt a)
 
@@ -209,6 +208,8 @@ class Typeable a => IsCommand a where
       -> Ent
       -> a
       -> Game (Maybe a)
+  endCommand :: a -> Game ()
+  endCommand _ = pure ()
 
 data Command where
   SomeCommand
@@ -220,17 +221,6 @@ instance IsCommand Command where
   pumpCommand dt e (SomeCommand a) =
     fmap SomeCommand <$> pumpCommand dt e a
 
-
-class    (IsChannelCommand a, IsInstantCommand a) => IsPassiveCommand a
-instance (IsChannelCommand a, IsInstantCommand a) => IsPassiveCommand a
-
-
-data SomePassive where
-  SomePassive
-      :: IsPassiveCommand a
-      => CommandParam a
-      -> a
-      -> SomePassive
 
 
 data Commanding f where
@@ -247,7 +237,7 @@ data Commanding f where
       => f a ()
       -> Commanding f
   PassiveCommand
-      :: IsPassiveCommand a
+      :: IsInstantCommand a
       => f a ()
       -> Commanding f
   PlacementCommand

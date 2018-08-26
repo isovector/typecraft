@@ -198,7 +198,7 @@ buildCommandCenterWidget = CommandWidget
 volcanoPassiveWidget :: CommandWidget
 volcanoPassiveWidget = CommandWidget
   { cwName = "Eruption"
-  , cwCommand = PassiveCommand . Proxy2 @PassiveScriptCmd $ volcanoPassive
+  , cwCommand = PassiveCommand $ Proxy2 @PassiveScriptCmd volcanoPassive
   , cwVisible = False
   , cwHotkey = Nothing
   }
@@ -214,7 +214,7 @@ trainMarineWidget = CommandWidget
 harvestWidget :: CommandWidget
 harvestWidget = CommandWidget
   { cwName = "Harvest"
-  , cwCommand = UnitCommand $ Proxy2 @HarvestCmd ()
+  , cwCommand = UnitCommand $ Proxy2 @UnitScriptCmd harvestScript
   , cwVisible = True
   , cwHotkey = Just HKey
   }

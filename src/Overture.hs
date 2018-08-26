@@ -316,8 +316,12 @@ resolveAttempt
     -> Attempt a
     -> Game ()
 resolveAttempt e (Success cmd) = do
+  (eon e $ query currentCommand) >>= \case
+    Just (SomeCommand oldCmd) -> endCommand oldCmd
+    Nothing -> pure ()
   emap (anEnt e) $ pure unchanged
     { currentCommand = Set $ SomeCommand cmd }
+
 resolveAttempt _ Attempted = pure ()
 resolveAttempt _ (Failure err) = do
   _ <- pure $ showTrace err
@@ -373,7 +377,7 @@ createEntity p = do
   sps' <- fmap catMaybes . for ps $
     \(PassiveCommand (Proxy2 param :: Proxy2 a ())) ->
       fromInstant @a param e >>= pure . \case
-        Success a -> Just $ SomePassive param a
+        Success a -> Just $ SomeCommand a
         _ -> Nothing
 
   emap (anEnt e) $ pure unchanged

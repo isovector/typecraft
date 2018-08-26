@@ -352,7 +352,7 @@ main = play config (const $ run realState hooks initialize player update draw) p
           for_ (gridSize everything) . const . start $ lift recomputeNavMesh
           for_ (activePassives everything)
             . traverse_
-            $ \(SomePassive param (a :: a)) -> endChannel @a param a
+            $ \(SomeCommand (a :: a)) -> endCommand @a a
       }
 
     realState = LocalState

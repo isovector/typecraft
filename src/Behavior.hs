@@ -9,14 +9,18 @@
 
 module Behavior where
 
-import Overture
 import AbilityUtils
+import Control.Error.Util (hoistMaybe)
 import Control.Monad.Trans.Maybe
+import Overture
 
 data PsiStormCmd = PsiStormCmd V2
   deriving Typeable
 
 data PassiveScriptCmd = PassiveScriptCmd Int
+  deriving Typeable
+
+data UnitScriptCmd = UnitScriptCmd Int
   deriving Typeable
 
 data MoveCmd = MoveCmd [V2]
@@ -27,18 +31,6 @@ data StopCmd = StopCmd
 
 data TrainCmd = TrainCmd Proto
   deriving Typeable
-
-data HarvestCmd = HarvestCmd
-  { _hcMove     :: Maybe MoveCmd
-  , _hcMineTime :: Limit Time
-  , _hcState    :: HarvestState
-  , _hcHarvestEnt :: Ent
-  , _hcReturnEnt :: Ent
-  } deriving Typeable
-
-data HarvestState
-  = HarvestCollect
-  | HarvestReturn
 
 data AttackCmd = AttackCmd
   { _acIx     :: Int
@@ -60,7 +52,6 @@ data BuildCmd = BuildCmd
   } deriving (Typeable)
 
 
-makeLenses ''HarvestCmd
 makeLenses ''AttackCmd
 makeLenses ''AcquireCmd
 makeLenses ''BuildCmd
@@ -68,97 +59,63 @@ makeLenses ''BuildCmd
 harvestScript
     :: Ent
     -> Ent
-    -> Ent
     -> Task ()
-harvestScript h _depot e = fix $ \loop -> do
+harvestScript e h = fix $ \loop -> do
+  let numPeriods = 5 :: Int
+      periodTime = 0.3
+      harvestAmount = 8
+
   let lifting = lift . lift
   (>>= maybe (pure ()) (const loop)) . runMaybeT $ do
-    Just harvestPos <-
-      lifting . eon h $ query pos
-    Success mcmd <-
-      lifting . fromLocation @MoveCmd () e
-              $ harvestPos + V2 0 tileHeight ^* 2
-    lift $ runCommand e mcmd
+    lifting (eon e $ (,,) <$> query powerup
+                          <*> query pos
+                          <*> query owner) >>= \case
+      Just ((rs, num), p, o) -> do
+        depots <- lifting . efor aliveEnts $ do
+          with isDepot
+          query owner >>= guard . (== o)
+          (,) <$> queryEnt <*> query pos
+
+        nearestDepot <- hoistMaybe
+                      . fmap fst
+                      . listToMaybe
+                      . sortBy (comparing $ quadrance . (p -) . snd)
+                      $ depots
+
+        Just depotPos <-
+          lifting . eon nearestDepot $ query pos
+        Success mcmd <-
+          lifting . fromLocation @MoveCmd () e
+                  $ depotPos - V2 0 tileHeight
+        lift $ runCommand e mcmd
+        lifting $ do
+          acquireResources o rs num
+          emap (anEnt e) . pure $ unchanged
+            { powerup = Unset
+            }
 
 
+      Nothing -> do
+        Just harvestPos <-
+          lifting . eon h $ query pos
+        Success mcmd <-
+          lifting . fromLocation @MoveCmd () e
+                  $ harvestPos + V2 0 tileHeight ^* 2
+        lift $ do
+          runCommand e mcmd
+          for_ [0..numPeriods] . const $ wait periodTime
 
+        lifting $ do
+          [rs] <- eover (anEnt h) $ do
+            rs <- query resourceSource
+            pure . (rs,) $ unchanged
+              { resourceSource = Set $ rs & _2 . limVal -~ harvestAmount
+              }
 
---   mpos <- eon _hcReturnEnt (query pos)
---   for mpos $ \retPos -> do
---     Success mcmd <- fromLocation () e
---                   $ retPos - V2 0 tileHeight
---     undefined
-
-
-
--- TODO(sandy): move to other patches
--- TODO(sandy): be more resiliant for pathing issues
-instance IsCommand HarvestCmd where
-  pumpCommand dt e hc@HarvestCmd{..} = do
-    let harvestAmount = 8
-
-    case (_hcMove, _hcState) of
-      (Just mcmd, _) -> do
-        mcmd' <- pumpCommand dt e mcmd
-        pure . Just $ hc & hcMove .~ mcmd'
-      (Nothing, HarvestReturn) -> do
-        Just o <- eon e $ query owner
-        Just (rs, _) <- eon _hcHarvestEnt $ query resourceSource
-        acquireResources o rs harvestAmount
-
-        Just harvestPos <- eon _hcHarvestEnt $ query pos
-        Success mcmd <- fromLocation () e
-                      $ harvestPos + V2 0 tileHeight ^* 2
-
-        pure . Just $ hc & hcMove  .~ Just mcmd
-                         & hcState .~ HarvestCollect
-
-      (Nothing, HarvestCollect) -> do
-        let mineTime' = _hcMineTime & limVal -~ dt
-        case _limVal mineTime' <= 0 of
-          True -> do
-            mpos <- eon _hcReturnEnt (query pos)
-            for mpos $ \retPos -> do
-              Success mcmd <- fromLocation () e
-                            $ retPos - V2 0 tileHeight
-
-              emap (anEnt _hcHarvestEnt) $ do
-                rs <- query resourceSource
-                pure unchanged
-                  { resourceSource = Set $ rs & _2 . limVal -~ harvestAmount
-                  }
-
-              pure $ hc & hcMove     .~ Just mcmd
-                        & hcState    .~ HarvestReturn
-                        & hcMineTime %~ resetLimit
-          False -> pure . Just $ hc & hcMineTime .~ mineTime'
-
-instance IsUnitCommand HarvestCmd where
-  fromUnit _ e h = do
-    let harvestTime = 1.5
-
-    Just (p, o) <- eon e $ (,) <$> query pos
-                               <*> query owner
-    depots <- efor aliveEnts $ do
-      with isDepot
-      query owner >>= guard . (== o)
-      (,) <$> queryEnt <*> query pos
-
-    let nearestDepot =
-          listToMaybe $ sortBy (comparing $ quadrance . (p -) . snd) depots
-    case nearestDepot of
-      Just (depot, _) -> do
-        Just harvestPos <- eon h $ query pos
-        Success mcmd <- fromLocation () e
-                      $ harvestPos + V2 0 tileHeight ^* 2
-        pure . pure $ HarvestCmd (Just mcmd)
-                                 (pure harvestTime)
-                                 HarvestCollect
-                                 h
-                                 depot
-      Nothing -> pure $ Failure "No depots available!"
-
-
+          emap (anEnt e) $ do
+            pure unchanged
+              { powerup = Set (fst rs, harvestAmount)
+              }
 
 
 instance IsCommand TrainCmd where
@@ -178,16 +135,24 @@ instance IsInstantCommand TrainCmd where
   fromInstant = pure . pure . pure . TrainCmd
 
 
+instance IsCommand UnitScriptCmd where
+  type CommandParam UnitScriptCmd = Ent -> Ent -> Task ()
+  pumpCommand _ _ a = pure $ Just a
+  endCommand (UnitScriptCmd a) = stop a
+
+instance IsUnitCommand UnitScriptCmd where
+  fromUnit t e u =
+    fmap (Success . UnitScriptCmd) . start $ t e u
+
+
 instance IsCommand PassiveScriptCmd where
   type CommandParam PassiveScriptCmd = Ent -> Task ()
   pumpCommand _ _ a = pure $ Just a
+  endCommand (PassiveScriptCmd i) = stop i
 
 instance IsInstantCommand PassiveScriptCmd where
   fromInstant t e =
     fmap (Success . PassiveScriptCmd) . start $ t e
-
-instance IsChannelCommand PassiveScriptCmd where
-  endChannel _ (PassiveScriptCmd i) = stop i
 
 
 instance IsPlacementCommand BuildCmd where
@@ -292,12 +257,11 @@ sqr :: Num a => a -> a
 sqr x = x * x
 
 instance IsLocationCommand MoveCmd where
-  fromLocation _ e g = do
-    [p] <- efor (anEnt e) $ query pos
-    mpp <- findPath p g
-    pure $ case mpp of
-      Just pp -> Success $ MoveCmd pp
-      Nothing -> Attempted
+  fromLocation _ e g =
+    (>>= maybe (pure Attempted) (pure . Success)) . runMaybeT $ do
+      p  <- MaybeT . eon e $ query pos
+      pp <- MaybeT . lift $ findPath p g
+      pure $ MoveCmd pp
 
 instance IsCommand MoveCmd where
   pumpCommand _ _ (MoveCmd []) = pure Nothing
@@ -411,12 +375,6 @@ moveTowards dt g = do
       dx = s * dt
 
   pure (dx < dist, p + dx *^ normalize dir)
-
-
-setOrder :: Command -> EntWorld 'SetterOf
-setOrder o = unchanged
-  { currentCommand   = Set o
-  }
 
 
 getSelectedEnts :: Game [Ent]
