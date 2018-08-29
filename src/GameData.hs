@@ -1,4 +1,5 @@
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedLists   #-}
 
 module GameData where
 
@@ -29,7 +30,10 @@ garethProto = newEntity
   , unitType = Just Unit
   , hp       = Just $ Limit 100 100
   , commands = Just $ harvestWidget : stdWidgets
-  , art      = Just $ Art __garethAttack 1 0.05
+  , animBundle = Just
+      [ (AnimAttack, __garethAttack)
+      , (AnimIdle, __garethIdle)
+      ]
   }
 
 mineralsProto :: Proto

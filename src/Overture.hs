@@ -16,9 +16,13 @@ module Overture
   , module Game.Sequoia.Window
   , module Control.Monad.State.Class
   , module Control.Monad.Trans.Class
+  , module Control.Monad.Trans.Maybe
   , coerce
+  , hoistMaybe
   ) where
 
+import Control.Error.Util (hoistMaybe)
+import Control.Monad.Trans.Maybe
 import qualified Algorithm.Search.JumpPoint as JP
 import           BasePrelude hiding (group, rotate, lazy, index, uncons, loop, inRange)
 import           Control.Lens hiding (without)
@@ -32,6 +36,7 @@ import           Data.Ecstasy.Internal (surgery)
 import qualified Data.Ecstasy.Types as E
 import qualified Data.IntMap.Internal as IMI
 import qualified Data.IntMap.Strict as IM
+import qualified Data.Map.Strict as M
 import           Game.Sequoia hiding (form)
 import           Game.Sequoia.Utils (showTrace)
 import           Game.Sequoia.Window (MouseButton (..))
@@ -391,4 +396,18 @@ resetLimit (Limit _ b) = Limit b b
 -- TODO(sandy): implement resources
 acquireResources :: Player -> Resource -> Int -> Game ()
 acquireResources _ _ _ = pure ()
+
+
+findAnim :: FindAnim -> AnimBundle -> Maybe CannedAnim
+findAnim (FindAnim anims) bundle =
+  getFirst $ foldMap (coerce . flip M.lookup bundle) anims
+
+
+playAnim :: Ent -> FindAnim -> Game ()
+playAnim e fs = void . runMaybeT $ do
+  bundle <- MaybeT . eon e $ query animBundle
+  a <- hoistMaybe $ findAnim fs bundle
+  lift $ setEntity e unchanged
+    { art = Set $ Art a 0
+    }
 

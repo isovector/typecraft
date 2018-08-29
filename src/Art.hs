@@ -21,7 +21,6 @@ drawArt :: Art
         -> Form
 drawArt Art{ _aCanned = CannedAnim{..}
            , _aTime
-           , _aScale
            } correction =
   let Just entity    = _aSchema ^. schemaEntity    . at _aEntity
       Just animation = entity   ^. entityAnimation . at _aAnim

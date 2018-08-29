@@ -1,14 +1,14 @@
-{-# LANGUAGE AllowAmbiguousTypes      #-}
-{-# LANGUAGE ConstraintKinds          #-}
-{-# LANGUAGE DeriveAnyClass           #-}
-{-# LANGUAGE DeriveFoldable           #-}
-{-# LANGUAGE DeriveFunctor            #-}
-{-# LANGUAGE DeriveGeneric            #-}
-{-# LANGUAGE DeriveTraversable        #-}
-{-# LANGUAGE StandaloneDeriving       #-}
-{-# LANGUAGE TemplateHaskell          #-}
-{-# LANGUAGE UndecidableInstances     #-}
-{-# OPTIONS_GHC -funbox-strict-fields #-}
+{-# LANGUAGE AllowAmbiguousTypes        #-}
+{-# LANGUAGE ConstraintKinds            #-}
+{-# LANGUAGE DeriveFoldable             #-}
+{-# LANGUAGE DeriveFunctor              #-}
+{-# LANGUAGE DeriveGeneric              #-}
+{-# LANGUAGE DeriveTraversable          #-}
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
+{-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE TemplateHaskell            #-}
+{-# LANGUAGE UndecidableInstances       #-}
+{-# OPTIONS_GHC -funbox-strict-fields   #-}
 
 module Types
   ( module Types
@@ -26,8 +26,10 @@ import           Control.Monad.Coroutine.SuspensionFunctors
 import           Control.Monad.State.Strict
 import           Data.Ecstasy
 import qualified Data.IntMap.Strict as IM
+import qualified Data.Map.Strict as M
 import           Data.Spriter.Types
 import           Data.Typeable
+import           GHC.Exts (IsList)
 import           Game.Sequoia
 import           Game.Sequoia.Keyboard
 import           Game.Sequoia.Window (MouseButton (..))
@@ -154,9 +156,9 @@ data EntWorld f = World
   , commands       :: !(Field f [CommandWidget])
   , activePassives :: !(Field f [Command])
   , isDepot        :: !(Flag f)
+  , animBundle     :: !(Field f AnimBundle)
 
   , art            :: !(Field f Art)
-
   , pos            :: !(Component f 'Virtual V2)
   , hp             :: !(Field f (Limit Int))
   , currentCommand :: !(Field f Command)
@@ -275,7 +277,6 @@ data CommandWidget = CommandWidget
 data Art = Art
   { _aCanned :: CannedAnim
   , _aTime   :: Time
-  , _aScale  :: Double
   } deriving (Eq)
 
 data CannedAnim = CannedAnim
@@ -284,7 +285,27 @@ data CannedAnim = CannedAnim
   , _aAnim      :: AnimationName
   , _aSpeedMult :: Double
   , _aRepeat    :: Bool
+  , _aScale     :: Double
   } deriving (Eq)
+
+
+data AnimName
+  = AnimIdle
+  | AnimAttack
+  | AnimWalk
+  | AnimInstantSpell
+  | AnimChannelSpell
+  | AnimCustom String
+  deriving (Eq, Ord, Show)
+
+type AnimBundle = M.Map AnimName CannedAnim
+
+newtype FindAnim = FindAnim
+  { getFindAnims :: [AnimName]
+  }
+  deriving (IsList, Monoid)
+
+
 
 
 

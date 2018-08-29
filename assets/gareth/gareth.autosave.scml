@@ -30,7 +30,7 @@
         <obj_info name="bone_009" type="bone" w="182.285" h="10"/>
         <obj_info name="bone_010" type="bone" w="122.939" h="10"/>
         <obj_info name="bone_011" type="bone" w="176.58" h="10"/>
-        <animation id="0" name="idle" length="100" interval="33">
+        <animation id="0" name="idle" length="100" interval="100">
             <mainline>
                 <key id="0">
                     <bone_ref id="0" timeline="14" key="0"/>
@@ -262,14 +262,14 @@
             </timeline>
             <timeline id="26" obj="12" name="bone_011" object_type="bone">
                 <key id="0" spin="-1">
-                    <bone x="122.938557" y="-0"/>
+                    <bone x="122.938557" y="-0" angle="0"/>
                 </key>
                 <key id="1" time="50">
                     <bone x="122.938557" y="-0" angle="330.846072"/>
                 </key>
             </timeline>
         </animation>
-        <animation id="1" name="default" length="1000" interval="33">
+        <animation id="1" name="default" length="1000" interval="100">
             <mainline>
                 <key id="0">
                     <bone_ref id="0" timeline="0" key="0"/>
@@ -363,7 +363,7 @@
             </timeline>
             <timeline id="12" obj="12" name="bone_011" object_type="bone">
                 <key id="0" spin="0">
-                    <bone x="122.938557" y="-0"/>
+                    <bone x="122.938557" y="-0" angle="0"/>
                 </key>
             </timeline>
             <timeline id="13" name="luleg">
@@ -437,7 +437,7 @@
                 </key>
             </timeline>
         </animation>
-        <animation id="2" name="attack" length="100" interval="33">
+        <animation id="2" name="attack" length="100" interval="100">
             <mainline>
                 <key id="0">
                     <bone_ref id="0" timeline="0" key="0"/>
@@ -718,7 +718,7 @@
             </timeline>
             <timeline id="12" obj="12" name="bone_011" object_type="bone">
                 <key id="0">
-                    <bone x="122.938557" y="-0"/>
+                    <bone x="122.938557" y="-0" angle="0"/>
                 </key>
                 <key id="1" time="100" spin="-1">
                     <bone x="120.823958" y="13.269666" angle="75.926167"/>

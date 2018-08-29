@@ -73,10 +73,11 @@ initialize = do
       , owner    = Just $ bool neutralPlayer mePlayer mine
       }
 
-  void $ createEntity garethProto
+  e <- createEntity garethProto
     { pos      = Just $ V2 450 400
     , owner    = Just mePlayer
     }
+  playAnim e $ coerce [AnimAttack]
 
   issueUnit @AttackCmd () (Ent 0) (Ent 1)
   issueUnit @AttackCmd () (Ent 9) (Ent 10)
