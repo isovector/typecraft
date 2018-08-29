@@ -247,53 +247,51 @@ instance IsUnitCommand AttackCmd where
 
 instance IsCommand AttackCmd where
   endCommand e _ = playAnim e [AnimIdle]
-  pumpCommand dt e ac@AttackCmd{..} = do
+  pumpCommand dt e ac@AttackCmd{..} = runMaybeT $ do
     let t = _acTarget
-    eon t (with isAlive >> query pos) >>= \case
-      Nothing -> pure Nothing
-      Just tp -> do
-        -- get attackdata
-        Just (p, a) <- eon e $
-          (,) <$> query pos <*> query (fmap (!! _acIx) . attacks)
 
-        let cooldown' = a ^. aCooldown.limVal - dt
-            rng       = a ^. aRange
+    tp <- MaybeT . eon t $ with isAlive >> query pos
+    (p, a) <- MaybeT . eon e $ (,) <$> query pos
+                                   <*> query (fmap (!! _acIx) . attacks)
 
-        case fastInRange (p - tp) rng of
-          -- if in range
+    let cooldown' = a ^. aCooldown.limVal - dt
+        rng       = a ^. aRange
+        direction = tp - p
+
+    case fastInRange direction rng of
+      -- if in range
+      True -> lift $ do
+        let refresh    = cooldown' < 0
+            cooldown'' = bool cooldown' (a ^. aCooldown.limMax) refresh
+            action     = bool Nothing (Just $ _aTask a e (TargetUnit t)) refresh
+        for_ action $ \task -> do
+          playAnim e [AnimAttack, AnimIdle]
+          start task
+
+        setEntity e unchanged
+          { attacks = Modify $ ix _acIx . aCooldown.limVal .~ cooldown''
+          , lastDir = Set $ normalize direction
+          }
+        pure $ ac & acPath .~ Nothing
+
+      -- not in range
+      False -> do
+        -- needs to repath
+        case (isNothing _acPath
+            || (_acRepath <= 0
+             && not (fastInRange (fst (fromJust _acPath) - tp) rng))) of
           True -> do
-            let refresh    = cooldown' < 0
-                cooldown'' = bool cooldown' (a ^. aCooldown.limMax) refresh
-                action     = bool Nothing (Just $ _aTask a e (TargetUnit t)) refresh
-            for_ action $ \task -> do
-              playAnim e [AnimAttack, AnimIdle]
-              start task
+            mcmd <- MaybeT . fmap attemptToMaybe
+                           $ fromLocation @MoveCmd () e tp
+            pure $ ac & acPath   ?~ (tp, mcmd)
+                      & acRepath .~ acRepathTime
 
-            setEntity e unchanged
-              { attacks = Modify $ ix _acIx . aCooldown.limVal .~ cooldown''
-              , lastDir = Set . normalize $ tp - p
-              }
-            pure . Just $ ac & acPath .~ Nothing
-
-          -- not in range
+          -- has a path
           False -> do
-            -- needs to repath
-            case (isNothing _acPath
-                || (_acRepath <= 0
-                 && not (fastInRange (fst (fromJust _acPath) - tp) rng))) of
-              True -> do
-                fromLocation @MoveCmd () e tp >>= \case
-                  Success mcmd ->
-                    pure . Just $ ac & acPath   ?~ (tp, mcmd)
-                                     & acRepath .~ acRepathTime
-                  _ -> pure Nothing
-
-              -- has a path
-              False -> do
-                Just (g, mcmd) <- pure _acPath
-                mcmd' <- pumpCommandImpl dt e mcmd
-                pure . Just $ ac & acPath .~ fmap (g,) mcmd'
-                                 & acRepath -~ dt
+            (g, mcmd) <- hoistMaybe _acPath
+            mcmd' <- lift $ pumpCommandImpl dt e mcmd
+            pure $ ac & acPath .~ fmap (g,) mcmd'
+                      & acRepath -~ dt
 
 fastInRange :: V2 -> Double -> Bool
 fastInRange dst rng = quadrance dst <= rng * rng
