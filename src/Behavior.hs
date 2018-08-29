@@ -77,7 +77,8 @@ instance IsInstantCommand TrainCmd where
 instance IsCommand UnitScriptCmd where
   type CommandParam UnitScriptCmd = Ent -> Ent -> Task ()
   pumpCommand _ _ a = pure $ Just a
-  endCommand (UnitScriptCmd a) = stop a
+  endCommand _ (Just (UnitScriptCmd a)) = stop a
+  endCommand _ Nothing = pure ()
 
 instance IsUnitCommand UnitScriptCmd where
   fromUnit t e u =
@@ -87,7 +88,8 @@ instance IsUnitCommand UnitScriptCmd where
 instance IsCommand PassiveScriptCmd where
   type CommandParam PassiveScriptCmd = Ent -> Task ()
   pumpCommand _ _ a = pure $ Just a
-  endCommand (PassiveScriptCmd i) = stop i
+  endCommand _ (Just (PassiveScriptCmd i)) = stop i
+  endCommand _ Nothing = pure ()
 
 instance IsInstantCommand PassiveScriptCmd where
   fromInstant t e =
@@ -105,7 +107,7 @@ instance IsCommand BuildCmd where
   type CommandParam BuildCmd = Proto
   pumpCommand dt e bc@BuildCmd{..} = case _bcMove of
     Just cmd -> do
-      cmd' <- pumpCommand dt e cmd
+      cmd' <- pumpCommandImpl dt e cmd
       pure $ Just $ bc & bcMove .~ cmd'
 
     Nothing -> do
@@ -177,7 +179,7 @@ instance IsCommand AcquireCmd where
     Just p <- eon e $ query pos
     case fastInRange (p - _aqPos) _aqDist of
       True ->
-        pumpCommand dt e _aqAttack >>= pure . \case
+        pumpCommandImpl dt e _aqAttack >>= pure . \case
           Just acmd' -> Just $ aq & aqAttack .~ acmd'
           Nothing    -> Nothing
       False -> pure Nothing
@@ -199,18 +201,21 @@ instance IsLocationCommand MoveCmd where
     (>>= maybe (pure Attempted) (pure . Success)) . runMaybeT $ do
       p  <- MaybeT . eon e $ query pos
       pp <- MaybeT . lift $ findPath p g
+      lift $ playAnim e [AnimWalk, AnimIdle]
       pure $ MoveCmd pp
 
 instance IsCommand MoveCmd where
   pumpCommand _ _ (MoveCmd []) = pure Nothing
   pumpCommand dt e (MoveCmd gg@(g:gs)) = do
     [gg'] <- eover (anEnt e) $ do
-      (notThereYet, p) <- moveTowards dt g
+      (notThereYet, p, dir) <- moveTowards dt g
 
       pure . (bool gs gg notThereYet, ) $ unchanged
         { pos = Set p
+        , lastDir = Set dir
         }
     pure . Just $ MoveCmd gg'
+  endCommand e _ = playAnim e [AnimIdle]
 
 
 instance IsInstantCommand StopCmd where
@@ -241,6 +246,7 @@ instance IsUnitCommand AttackCmd where
           Nothing  -> pure . Failure $ "Unable to attack" ++ show c
 
 instance IsCommand AttackCmd where
+  endCommand e _ = playAnim e [AnimIdle]
   pumpCommand dt e ac@AttackCmd{..} = do
     let t = _acTarget
     eon t (with isAlive >> query pos) >>= \case
@@ -259,9 +265,13 @@ instance IsCommand AttackCmd where
             let refresh    = cooldown' < 0
                 cooldown'' = bool cooldown' (a ^. aCooldown.limMax) refresh
                 action     = bool Nothing (Just $ _aTask a e (TargetUnit t)) refresh
-            for_ action start
+            for_ action $ \task -> do
+              playAnim e [AnimAttack, AnimIdle]
+              start task
+
             setEntity e unchanged
               { attacks = Modify $ ix _acIx . aCooldown.limVal .~ cooldown''
+              , lastDir = Set . normalize $ tp - p
               }
             pure . Just $ ac & acPath .~ Nothing
 
@@ -281,7 +291,7 @@ instance IsCommand AttackCmd where
               -- has a path
               False -> do
                 Just (g, mcmd) <- pure _acPath
-                mcmd' <- pumpCommand dt e mcmd
+                mcmd' <- pumpCommandImpl dt e mcmd
                 pure . Just $ ac & acPath .~ fmap (g,) mcmd'
                                  & acRepath -~ dt
 
@@ -300,7 +310,7 @@ findPath src dst = do
      else Nothing
 
 
-moveTowards :: Time -> V2 -> Query (Bool, V2)
+moveTowards :: Time -> V2 -> Query (Bool, V2, V2)
 moveTowards dt g = do
   p <- query pos
   s <- query speed
@@ -308,8 +318,9 @@ moveTowards dt g = do
   let dir = g - p
       dist = norm dir
       dx = s * dt
+      dir' = normalize dir
 
-  pure (dx < dist, p + dx *^ normalize dir)
+  pure (dx < dist, p + dx *^ dir', dir')
 
 
 getSelectedEnts :: Game [Ent]

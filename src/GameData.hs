@@ -23,13 +23,13 @@ marineProto = newEntity
 
 garethProto :: Proto
 garethProto = newEntity
-  { attacks  = Just [gunAttackData]
+  { attacks  = Just [changAttackData]
   , entSize  = Just 7
-  , acqRange = Just 125
-  , speed    = Just 150
+  , acqRange = Just 200
+  , speed    = Just 100
   , unitType = Just Unit
   , hp       = Just $ Limit 100 100
-  , commands = Just $ harvestWidget : stdWidgets
+  , commands = Just $ stdWidgets
   , animBundle = Just
       [ (AnimAttack, __garethAttack)
       , (AnimIdle, __garethIdle)
@@ -74,13 +74,31 @@ gunAttackData = AttackData
   { _aCooldown = Limit 0 0.75
   , _aRange    = 75
   , _aClass    = [Nothing]
-  , _aTask     = missile (missileEnt 300) $ \v2 t -> do
+  , _aTask     = missile (missileProto 300) $ \v2 t -> do
       doDamage Nothing 30 v2 t
       explosion v2 1 $ \d -> scale (d + 0.01)
                            . filled (rgba 1 0 0 $ 1 - d / 2)
                            . circle
                            $ 8 + d * 3
   }
+
+changAttackData :: AttackData
+changAttackData = AttackData
+  { _aCooldown = Limit 0 2
+  , _aRange    = 150
+  , _aClass    = [Nothing]
+  , _aTask     = missile changEnt $ \v2 t -> do
+      doDamage Nothing 100 v2 t
+      explosion v2 1 $ \d -> scale (d + 0.01)
+                           . filled (rgba 1 0 0 $ 1 - d / 2)
+                           . circle
+                           $ 8 + d * 3
+  }
+  where
+    changEnt =
+      (missileProto 300)
+        { gfx = Just . scale 0.1 . toForm $ image "assets/chang.png"
+        }
 
 psiStormWidget :: CommandWidget
 psiStormWidget = CommandWidget

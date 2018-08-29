@@ -71,8 +71,8 @@ missile proto fx attacker t = do
     _ -> pure ()
 
 
-missileEnt :: Double -> Proto
-missileEnt sp = newEntity
+missileProto :: Double -> Proto
+missileProto sp = newEntity
   { unitType = Just Missile
   , speed    = Just sp
   }

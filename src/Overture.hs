@@ -56,6 +56,8 @@ nmFind = JP.findPath
 newEntity :: EntWorld  'FieldOf
 newEntity = E.newEntity
   { isAlive = Just ()
+  , lifetime = Just 0
+  , lastDir = Just $ V2 1 0
   }
 
 
@@ -170,7 +172,7 @@ wait t | t <= 0 = pure ()
 runCommand :: IsCommand a => Ent -> a -> Task ()
 runCommand e cmd = do
   dt <- await
-  lift (pumpCommand dt e cmd) >>=
+  lift (pumpCommandImpl dt e cmd) >>=
     do traverse_ $ \cmd' -> runCommand e cmd'
 
 
@@ -257,7 +259,7 @@ pumpSomeCommand
     -> Command
     -> Game (Maybe Command)
 pumpSomeCommand dt e (SomeCommand cmd) =
-  fmap (fmap SomeCommand) $ pumpCommand dt e cmd
+  fmap (fmap SomeCommand) $ pumpCommandImpl dt e cmd
 
 
 updateCommands
@@ -322,7 +324,7 @@ resolveAttempt
     -> Game ()
 resolveAttempt e (Success cmd) = do
   (eon e $ query currentCommand) >>= \case
-    Just (SomeCommand oldCmd) -> endCommand oldCmd
+    Just (SomeCommand oldCmd) -> endCommand e $ Just oldCmd
     Nothing -> pure ()
   setEntity e unchanged
     { currentCommand = Set $ SomeCommand cmd
@@ -399,7 +401,7 @@ acquireResources _ _ _ = pure ()
 
 
 findAnim :: FindAnim -> AnimBundle -> Maybe CannedAnim
-findAnim (FindAnim anims) bundle =
+findAnim anims bundle =
   getFirst $ foldMap (coerce . flip M.lookup bundle) anims
 
 
@@ -410,4 +412,42 @@ playAnim e fs = void . runMaybeT $ do
   lift $ setEntity e unchanged
     { art = Set $ Art a 0
     }
+
+
+isSameType
+    :: forall (a :: *) (b :: *)
+     . (Typeable a, Typeable b)
+    => Bool
+isSameType = maybe False (const True) $ eqT @a @b
+
+isWidget :: forall a f. IsCommand a => Commanding f -> Bool
+isWidget (LocationCommand  (_ :: f b V2))         = isSameType @a @b
+isWidget (UnitCommand      (_ :: f b Ent))        = isSameType @a @b
+isWidget (InstantCommand   (_ :: f b ()))         = isSameType @a @b
+isWidget (PassiveCommand   (_ :: f b ()))         = isSameType @a @b
+isWidget (PlacementCommand (_ :: f b (Int, Int))) = isSameType @a @b
+
+
+hasWidget :: forall a. IsCommand a => Ent -> Game Bool
+hasWidget e = fmap (maybe False id) . runMaybeT $ do
+  ws <- MaybeT . eon e $ query commands
+  pure $ any (isWidget @a . cwCommand) ws
+
+
+whenM :: Monad m => m Bool -> m () -> m ()
+whenM c a = c >>= bool (pure ()) a
+
+pumpCommandImpl
+    :: forall a
+     . IsCommand a
+    => Time
+    -> Ent
+    -> a
+    -> Game (Maybe a)
+pumpCommandImpl dt e a = do
+  pumpCommand dt e a >>= \case
+    z@Just{} -> pure z
+    Nothing -> do
+      endCommand @a e Nothing
+      pure Nothing
 

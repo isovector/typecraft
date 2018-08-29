@@ -73,14 +73,13 @@ initialize = do
       , owner    = Just $ bool neutralPlayer mePlayer mine
       }
 
-  e <- createEntity garethProto
+  issueUnit @AttackCmd () (Ent 0) (Ent 1)
+  issueUnit @AttackCmd () (Ent 9) (Ent 10)
+
+  void $ createEntity garethProto
     { pos      = Just $ V2 450 400
     , owner    = Just mePlayer
     }
-  playAnim e $ coerce [AnimAttack]
-
-  issueUnit @AttackCmd () (Ent 0) (Ent 1)
-  issueUnit @AttackCmd () (Ent 9) (Ent 10)
 
   void $ createEntity mineralsProto
     { pos      = Just $ V2 (tileWidth * 16) (tileHeight * 15)
@@ -132,6 +131,11 @@ update :: Time -> Game ()
 update dt = do
   pumpTasks dt
   updateCommands dt
+
+  emap aliveEnts $ do
+    pure unchanged
+      { lifetime = Modify (+ dt)
+      }
 
   emap (entsWith art) $ do
     a <- query art
@@ -216,7 +220,9 @@ playerNotWaiting mouse kb = do
   when (mPress mouse buttonRight) $ do
     sel <- getSelectedEnts
     for_ sel $ \ent ->
-      issueLocation @MoveCmd () ent $ mPos mouse
+      whenM (hasWidget @MoveCmd ent)
+        . issueLocation @MoveCmd () ent
+        $ mPos mouse
 
   allSel <- efor aliveEnts $ with selected >> query commands
   z <- for (listToMaybe allSel) $ \acts -> do
@@ -287,23 +293,6 @@ draw mouse = fmap (cull . DL.toList . fst)
                     , (0,  gh) ^. centerTileScreen
                     ]
 
-    -- debug draw
-    void . optional $ do
-      SomeCommand cmd <- query currentCommand
-      Just (MoveCmd g@(_:_)) <- pure $ cast cmd
-      Unit <- query unitType
-      let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
-      emit (V2 0 0) $ traced ls $ path $ p : g
-      emit (last g) $ outlined ls $ circle 5
-
-    void . optional $ do
-      atts <- query attacks
-      acq  <- query acqRange
-
-      for_ atts $ \att ->
-        emit p $ traced' (rgba 0.7 0 0 0.3) $ circle $ _aRange att
-      emit p $ traced' (rgba 0.4 0.4 0.4 0.3) $ circle $ acq
-
   for_ screenCoords $ \(x, y) ->
     for_ (mapDoodads x y) $ \f ->
       emit ((x, y) ^. centerTileScreen) f
@@ -317,7 +306,11 @@ draw mouse = fmap (cull . DL.toList . fst)
   void . efor aliveEnts $ do
     p <- query pos
     a <- query art
-    emit p $ drawArt a Nothing
+    d <- query lastDir
+    emit p . bool (scaleXY (-1) 1)
+                  id
+                  (dot d (V2 1 0) >= 0)
+           $ drawArt a Nothing
 
   -- draw placement command
   gets _lsCommandCont >>= \case
@@ -336,6 +329,25 @@ draw mouse = fmap (cull . DL.toList . fst)
       . traced' (rgb 0 1 0)
       $ rect w h
 
+  -- debug draw
+  void . efor aliveEnts $ do
+    p  <- query pos
+    void . optional $ do
+      SomeCommand cmd <- query currentCommand
+      Just (MoveCmd g@(_:_)) <- pure $ cast cmd
+      Unit <- query unitType
+      let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
+      emit (V2 0 0) $ traced ls $ path $ p : g
+      emit (last g) $ outlined ls $ circle 5
+
+    void . optional $ do
+      atts <- query attacks
+      acq  <- query acqRange
+
+      for_ atts $ \att ->
+        emit p $ traced' (rgba 0.7 0 0 0.3) $ circle $ _aRange att
+      emit p $ traced' (rgba 0.4 0.4 0.4 0.3) $ circle $ acq
+
   pure ()
 
 
@@ -346,14 +358,15 @@ main = play config (const $ run realState hooks initialize player update draw) p
            $ rgb 0 0 0
 
     hooks = Hooks
-      { hookNewEnt = \e ->
+      { hookNewEnt = \e -> do
           eon e (with gridSize) >>= traverse_ (const recomputeNavMesh)
+          eon e (with animBundle) >>= traverse_ (const $ playAnim e [AnimIdle])
       , hookDelEnt = \e -> do
           everything <- getEntity e
           for_ (gridSize everything) . const . start $ lift recomputeNavMesh
           for_ (activePassives everything)
             . traverse_
-            $ \(SomeCommand (a :: a)) -> endCommand @a a
+            $ \(SomeCommand (a :: a)) -> endCommand @a e $ Just a
       }
 
     realState = LocalState

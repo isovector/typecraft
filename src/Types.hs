@@ -29,7 +29,6 @@ import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 import           Data.Spriter.Types
 import           Data.Typeable
-import           GHC.Exts (IsList)
 import           Game.Sequoia
 import           Game.Sequoia.Keyboard
 import           Game.Sequoia.Window (MouseButton (..))
@@ -158,12 +157,15 @@ data EntWorld f = World
   , isDepot        :: !(Flag f)
   , animBundle     :: !(Field f AnimBundle)
 
+  , lifetime       :: !(Field f Time)
+
   , art            :: !(Field f Art)
   , pos            :: !(Component f 'Virtual V2)
   , hp             :: !(Field f (Limit Int))
   , currentCommand :: !(Field f Command)
   , resourceSource :: !(Field f (Resource, Limit Int))
   , powerup        :: !(Field f (Resource, Int))
+  , lastDir        :: !(Field f V2)
   }
   deriving (Generic)
 
@@ -210,8 +212,9 @@ class Typeable a => IsCommand a where
       -> Ent
       -> a
       -> Game (Maybe a)
-  endCommand :: a -> Game ()
-  endCommand _ = pure ()
+  endCommand :: Ent -> Maybe a -> Game ()
+  -- TODO(sandy): there is a reasonable impl of `playAnim e AnimIdle` here
+  endCommand _ _ = pure ()
 
 data Command where
   SomeCommand
@@ -300,14 +303,7 @@ data AnimName
 
 type AnimBundle = M.Map AnimName CannedAnim
 
-newtype FindAnim = FindAnim
-  { getFindAnims :: [AnimName]
-  }
-  deriving (IsList, Monoid)
-
-
-
-
+type FindAnim = [AnimName]
 
 makeLenses ''LocalState
 makeLenses ''AttackData
