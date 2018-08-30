@@ -75,5 +75,6 @@ missileProto :: Double -> Proto
 missileProto sp = newEntity
   { unitType = Just Missile
   , speed    = Just sp
+  , isFlying = Just ()
   }
 

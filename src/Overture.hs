@@ -456,14 +456,29 @@ pumpCommandImpl dt e a = do
       pure Nothing
 
 
+isPointObstructed
+    :: V2  -- ^ desired pos
+    -> Double  -- ^ desired size
+    -> Maybe Ent
+    -> Game Bool
+isPointObstructed p s me = do
+  qt <- gets _lsDynamic
+  pure . any (/= me)
+       . fmap (Just . fst)
+       $ QT.inRange qt p s
+
+
 closestPointTo
     :: V2  -- ^ desired pos
     -> Double  -- ^ desired size
     -> V2  -- ^ try direction
     -> Game V2
 closestPointTo p s dir = do
-  qt <- gets _lsDynamic
-  case QT.inRange qt p s of
-    [] -> pure p
-    _  -> closestPointTo (p + dir ^* s) s dir
+  isPointObstructed p s Nothing >>= \case
+    False -> pure p
+    True -> closestPointTo (p + dir ^* s) s dir
+
+
+fromFlag :: Maybe () -> Bool
+fromFlag = maybe False $ const True
 

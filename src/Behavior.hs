@@ -202,22 +202,37 @@ sqr x = x * x
 instance IsLocationCommand MoveCmd where
   fromLocation _ e g =
     (>>= maybe (pure Attempted) (pure . Success)) . runMaybeT $ do
-      p  <- MaybeT . eon e $ query pos
-      pp <- MaybeT . lift $ findPath p g
+      (p, flying) <- MaybeT . eon e $ (,) <$> query pos
+                                          <*> queryFlag isFlying
+      pp <- bool (MaybeT . lift $ findPath p g) (pure [g]) flying
       lift $ playAnim e [AnimWalk, AnimIdle]
       pure $ MoveCmd pp
 
 instance IsCommand MoveCmd where
   pumpCommand _ _ (MoveCmd []) = pure Nothing
   pumpCommand dt e (MoveCmd gg@(g:gs)) = do
-    [gg'] <- eover (anEnt e) $ do
-      (notThereYet, p, dir) <- moveTowards dt g
+    ent <- getEntity e
+    let Just p = pos ent
+        Just s = speed ent
+        sz     = maybe defSize id $ entSize ent
+        flying = fromFlag $ isFlying ent
 
-      pure . (bool gs gg notThereYet, ) $ unchanged
-        { pos = Set p
-        , lastDir = Set dir
-        }
-    pure . Just $ MoveCmd gg'
+        travel = s * dt
+        sub = g - p
+        dist = norm sub
+        isThere = dist <= travel
+        dir = normalize sub
+        p' = p + dir ^* min travel dist
+
+    obstructed <-
+      bool (isPointObstructed p' sz $ Just e) (pure False) flying
+
+    setEntity e unchanged
+      { pos = bool (Set p') Keep obstructed
+      , lastDir = Set dir
+      }
+
+    pure . pure $ MoveCmd $ bool gg gs isThere
   endCommand e _ = playAnim e [AnimIdle]
 
 
