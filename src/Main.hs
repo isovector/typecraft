@@ -74,8 +74,8 @@ initialize = do
       , owner    = Just $ bool neutralPlayer mePlayer mine
       }
 
-  issueUnit @AttackCmd () (Ent 0) (Ent 1)
-  issueUnit @AttackCmd () (Ent 9) (Ent 10)
+--   issueUnit @AttackCmd () (Ent 0) (Ent 1)
+--   issueUnit @AttackCmd () (Ent 9) (Ent 10)
 
   void $ createEntity garethProto
     { pos      = Just $ V2 450 400
@@ -87,7 +87,7 @@ initialize = do
     }
 
   void $ createEntity newEntity
-    { pos      = Just $ V2 700 300
+    { pos      = Just $ V2 500 400
     , attacks  = Just [gunAttackData]
     , entSize  = Just 10
     , speed    = Just 100
@@ -335,7 +335,7 @@ draw mouse = fmap (cull . DL.toList . fst)
     p  <- query pos
     void . optional $ do
       SomeCommand cmd <- query currentCommand
-      Just (MoveCmd g@(_:_)) <- pure $ cast cmd
+      Just (MoveCmd g@(_:_) _ _) <- pure $ cast cmd
       Unit <- query unitType
       let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
       emit (V2 0 0) $ traced ls $ path $ p : g

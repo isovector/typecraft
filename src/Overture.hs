@@ -21,14 +21,14 @@ module Overture
   , hoistMaybe
   ) where
 
-import Control.Error.Util (hoistMaybe)
-import Control.Monad.Trans.Maybe
 import qualified Algorithm.Search.JumpPoint as JP
 import           BasePrelude hiding (group, rotate, lazy, index, uncons, loop, inRange)
-import           Control.Lens hiding (without)
+import           Control.Error.Util (hoistMaybe)
+import           Control.Lens hiding (without, op)
 import           Control.Monad.State.Class (MonadState, get, gets, put, modify)
 import           Control.Monad.State.Strict (runState)
 import           Control.Monad.Trans.Class (lift)
+import           Control.Monad.Trans.Maybe
 import           Data.Coerce
 import qualified Data.Ecstasy as E
 import           Data.Ecstasy hiding (newEntity, createEntity)
@@ -40,9 +40,11 @@ import qualified Data.Map.Strict as M
 import           Game.Sequoia hiding (form)
 import           Game.Sequoia.Utils (showTrace)
 import           Game.Sequoia.Window (MouseButton (..))
-import           Linear (norm, normalize, (*^), (^*), quadrance, M22)
+import           Linear (norm, normalize, (*^), (^*), quadrance, M22, project)
+import qualified Linear.V2 as L
 import qualified QuadTree.QuadTree as QT
 import           Types
+import           Linear.Matrix
 
 
 nmIsOpen :: NavMesh -> (Int, Int) -> Bool
@@ -456,16 +458,24 @@ pumpCommandImpl dt e a = do
       pure Nothing
 
 
+getPointObstructions
+    :: V2  -- ^ desired pos
+    -> Double  -- ^ desired size
+    -> Maybe Ent
+    -> Game [(Ent, V2)]
+getPointObstructions p s me = do
+  qt <- gets _lsDynamic
+  pure . filter ((/= me) . Just . fst)
+       $ QT.inRange qt p s
+
+
 isPointObstructed
     :: V2  -- ^ desired pos
     -> Double  -- ^ desired size
     -> Maybe Ent
     -> Game Bool
-isPointObstructed p s me = do
-  qt <- gets _lsDynamic
-  pure . any (/= me)
-       . fmap (Just . fst)
-       $ QT.inRange qt p s
+isPointObstructed p s me =
+  not . null <$> getPointObstructions p s me
 
 
 closestPointTo
@@ -481,4 +491,9 @@ closestPointTo p s dir = do
 
 fromFlag :: Maybe () -> Bool
 fromFlag = maybe False $ const True
+
+rotV2 :: Double -> V2 -> V2
+rotV2 theta v2 =
+  L.V2 (L.V2 (cos theta)          (sin theta))
+       (L.V2 (negate $ sin theta) (cos theta)) !* v2
 

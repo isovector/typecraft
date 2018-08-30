@@ -2,13 +2,11 @@
 
 module Behavior.Scripts where
 
-import           AbilityUtils
-import           Behavior
-import           Control.Error.Util (hoistMaybe)
-import           Control.Monad.Trans.Maybe
-import           Linear.Matrix
-import qualified Linear.V2 as L
-import           Overture
+import AbilityUtils
+import Behavior
+import Control.Error.Util (hoistMaybe)
+import Control.Monad.Trans.Maybe
+import Overture
 
 
 harvestScript
@@ -85,9 +83,6 @@ volcanoPassive e = do
 
       volpos = v2 + V2 100 0 ^* sc
 
-      rotmat theta = L.V2 (L.V2 (cos theta)          (sin theta))
-                          (L.V2 (negate $ sin theta) (cos theta))
-
   flip fix [1..] $ \f z ->  do
     lift . explosion volpos waitPeriod
          $ \d -> scale (d + 0.01)
@@ -95,7 +90,7 @@ volcanoPassive e = do
                . circle
                $ 8 + d * 3
 
-    let dx = rotmat (fromIntegral (head z) * pi / 302 * 45) !* (V2 200 0)
+    let dx = rotV2 (fromIntegral (head z) * pi / 302 * 45) $ V2 200 0
         pos = v2 + dx
 
     lift . explosion volpos warning

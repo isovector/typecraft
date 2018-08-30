@@ -22,7 +22,11 @@ data PassiveScriptCmd = PassiveScriptCmd Int
 data UnitScriptCmd = UnitScriptCmd Int
   deriving Typeable
 
-data MoveCmd = MoveCmd [V2]
+data MoveCmd = MoveCmd
+  { _mcWaypoints :: [V2]
+  , _mcGoal      :: V2
+  , _mcStuckTime :: Time
+  }
   deriving (Typeable)
 
 data StopCmd = StopCmd
@@ -54,6 +58,7 @@ data BuildCmd = BuildCmd
 makeLenses ''AttackCmd
 makeLenses ''AcquireCmd
 makeLenses ''BuildCmd
+makeLenses ''MoveCmd
 
 
 
@@ -206,11 +211,30 @@ instance IsLocationCommand MoveCmd where
                                           <*> queryFlag isFlying
       pp <- bool (MaybeT . lift $ findPath p g) (pure [g]) flying
       lift $ playAnim e [AnimWalk, AnimIdle]
-      pure $ MoveCmd pp
+      pure $ MoveCmd pp g 0
+
+maxStuckTime :: Time
+maxStuckTime = 0.2
+
+
+tryMoveInto :: Ent -> V2 -> Double -> V2 -> Bool -> Game (Maybe (Ent, V2))
+tryMoveInto e p sz dir flying = do
+  obstructions <-
+    bool (getPointObstructions p sz $ Just e) (pure []) flying
+
+  when (null obstructions) $ do
+    setEntity e unchanged
+      { pos     = Set p
+      , lastDir = Set dir
+      }
+
+  pure $ listToMaybe obstructions
+
 
 instance IsCommand MoveCmd where
-  pumpCommand _ _ (MoveCmd []) = pure Nothing
-  pumpCommand dt e (MoveCmd gg@(g:gs)) = do
+  pumpCommand _ _ (MoveCmd [] _ _) = pure Nothing
+  pumpCommand dt e mcmd@MoveCmd{..} = do
+    let gg@(g:gs) = _mcWaypoints
     ent <- getEntity e
     let Just p = pos ent
         Just s = speed ent
@@ -224,15 +248,34 @@ instance IsCommand MoveCmd where
         dir = normalize sub
         p' = p + dir ^* min travel dist
 
-    obstructed <-
-      bool (isPointObstructed p' sz $ Just e) (pure False) flying
+    case _mcStuckTime < maxStuckTime of
+      True -> do
+        success <- isNothing <$> tryMoveInto e p' sz dir flying
 
-    setEntity e unchanged
-      { pos = bool (Set p') Keep obstructed
-      , lastDir = Set dir
-      }
+        pure . pure $ case success of
+          True  -> mcmd & mcWaypoints .~ bool gg gs isThere
+          False -> mcmd & mcStuckTime +~ dt
 
-    pure . pure $ MoveCmd $ bool gg gs isThere
+      False -> do
+        obstruction <- tryMoveInto e p' sz dir flying
+        case obstruction of
+          Nothing ->
+            pure . pure $ mcmd & mcStuckTime .~ 0
+          Just (_, op) -> do
+            let d = op - p
+                dir' = normalize $ rotV2 (pi / 2) d
+                p'' = p + dir' ^* travel
+
+            success <- isNothing <$> tryMoveInto e p'' sz dir' flying
+
+            pure $ case success of
+              False -> Nothing  -- fuck it
+              True  ->
+                pure $ mcmd & mcWaypoints %~ (p + dir' ^* sz * 3:)
+                            & mcStuckTime .~ 0
+
+
+
   endCommand e _ = playAnim e [AnimIdle]
 
 
@@ -345,4 +388,4 @@ getSelectedEnts = efor aliveEnts $
   with selected *> queryEnt
 
 directMoveCommand :: V2 -> Command
-directMoveCommand = SomeCommand . MoveCmd . pure
+directMoveCommand p = SomeCommand $ MoveCmd [p] p 0
