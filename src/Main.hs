@@ -45,21 +45,22 @@ separateTask = do
           guard $ fst e1 < fst e2
           pure (e1, e2)
     for_ pairwise $ \((e1, p1), (e2, p2)) -> do
-      zs <- lift . eover (someEnts [e1, e2]) $ do
+      zs <- lift . efor (someEnts [e1, e2]) $ do
         Unit <- query unitType
-        -- TODO(sandy): constant for def size
-        x <- queryDef 10 entSize
-        pure (x, unchanged)
+        s <- queryDef defSize entSize
+        pure s
       when (length zs == 2) $ do
         let [s1, s2] = zs
+            dist = norm $ p1 - p2
             dir = normalize $ p1 - p2
             s   = s1 + s2
-        lift . when (withinV2 p1 p2 s) $ do
+            halfDist = dist / 2
+        lift . when (dist < s) $ do
           setEntity e1 unchanged
-            { pos = Set $ p1 + dir ^* s1
+            { pos = Set $ p1 + dir ^* halfDist
             }
           setEntity e2 unchanged
-            { pos = Set $ p2 - dir ^* s2
+            { pos = Set $ p2 - dir ^* halfDist
             }
 
 

@@ -187,7 +187,7 @@ waitUntil what = do
 getUnitsInZone :: (Int, Int) -> Game [(Ent, V2)]
 getUnitsInZone zone = do
   dyn <- gets _lsDynamic
-  pure $ QT.inZone dyn zone
+  pure $ liftA2 (,) (view _1) (view _2) <$> QT.inZone dyn zone
 
 
 getUnitsInRange :: V2 -> Double -> Game [(Ent, Double)]
@@ -207,8 +207,7 @@ getUnitsInSquare p1 p2 = do
 
 getUnitAtPoint :: V2 -> Game (Maybe Ent)
 getUnitAtPoint p1 = do
-  -- TODO(sandy): yucky; don't work for big boys
-  us <- getUnitsInRange p1 10
+  us <- getUnitsInRange p1 0
   pure . fmap fst
        . listToMaybe
        $ sortBy (comparing snd) us
@@ -437,6 +436,11 @@ hasWidget e = fmap (maybe False id) . runMaybeT $ do
 whenM :: Monad m => m Bool -> m () -> m ()
 whenM c a = c >>= bool (pure ()) a
 
+
+defSize :: Double
+defSize = 10
+
+
 pumpCommandImpl
     :: forall a
      . IsCommand a
@@ -450,4 +454,16 @@ pumpCommandImpl dt e a = do
     Nothing -> do
       endCommand @a e Nothing
       pure Nothing
+
+
+closestPointTo
+    :: V2  -- ^ desired pos
+    -> Double  -- ^ desired size
+    -> V2  -- ^ try direction
+    -> Game V2
+closestPointTo p s dir = do
+  qt <- gets _lsDynamic
+  case QT.inRange qt p s of
+    [] -> pure p
+    _  -> closestPointTo (p + dir ^* s) s dir
 

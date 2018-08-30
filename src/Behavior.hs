@@ -64,8 +64,13 @@ instance IsCommand TrainCmd where
       eon e $ (,,) <$> query pos
                    <*> query gridSize
                    <*> query owner
+
+    let desired = p + V2 0 (fromIntegral (ysize + 1) * tileHeight)
+        s       = maybe defSize id $ entSize proto
+    actual <- closestPointTo desired s $ V2 1 0
+
     void $ createEntity proto
-     { pos   = Just $ p + V2 0 (fromIntegral (ysize + 1) * tileHeight)
+     { pos   = Just actual
      , owner = Just o
      }
     pure Nothing
@@ -190,11 +195,9 @@ isEnemy :: Player -> Player -> Bool
 isEnemy = (/=)
 
 
-biggestDude :: Num t => t
-biggestDude = 10
-
 sqr :: Num a => a -> a
 sqr x = x * x
+
 
 instance IsLocationCommand MoveCmd where
   fromLocation _ e g =
@@ -254,6 +257,7 @@ instance IsCommand AttackCmd where
     (p, a) <- MaybeT . eon e $ (,) <$> query pos
                                    <*> query (fmap (!! _acIx) . attacks)
 
+    -- TODO(sandy): cooldown only updates when you have an attack cmd
     let cooldown' = a ^. aCooldown.limVal - dt
         rng       = a ^. aRange
         direction = tp - p
