@@ -14,9 +14,9 @@ module Overture
   , module Data.Ecstasy
   , module Linear
   , module Game.Sequoia.Window
-  , module Control.Monad.State.Class
   , module Control.Monad.Trans.Class
   , module Control.Monad.Trans.Maybe
+  , module Control.Monad.IO.Class
   , coerce
   , hoistMaybe
   ) where
@@ -25,14 +25,15 @@ import qualified Algorithm.Search.JumpPoint as JP
 import           BasePrelude hiding (group, rotate, lazy, index, uncons, loop, inRange)
 import           Control.Error.Util (hoistMaybe)
 import           Control.Lens hiding (without, op)
-import           Control.Monad.State.Class (MonadState, get, gets, put, modify)
-import           Control.Monad.State.Strict (runState)
+import           Control.Monad.IO.Class (MonadIO (..))
+import           Control.Monad.Reader.Class (MonadReader, ask)
 import           Control.Monad.Trans.Class (lift)
 import           Control.Monad.Trans.Maybe
+import           Control.Monad.Trans.Reader (runReaderT)
 import           Data.Coerce
 import qualified Data.Ecstasy as E
 import           Data.Ecstasy hiding (newEntity, createEntity)
-import           Data.Ecstasy.Internal (surgery)
+import           Data.Ecstasy.Internal (surgery, getWorld)
 import qualified Data.Ecstasy.Types as E
 import qualified Data.IntMap.Internal as IMI
 import qualified Data.IntMap.Strict as IM
@@ -41,10 +42,33 @@ import           Game.Sequoia hiding (form)
 import           Game.Sequoia.Utils (showTrace)
 import           Game.Sequoia.Window (MouseButton (..))
 import           Linear (norm, normalize, (*^), (^*), quadrance, M22, project)
+import           Linear.Matrix
 import qualified Linear.V2 as L
 import qualified QuadTree.QuadTree as QT
 import           Types
-import           Linear.Matrix
+
+get
+    :: (MonadIO m, MonadReader (IORef LocalState) m)
+    => m LocalState
+get = gets id
+
+gets
+    :: (MonadIO m, MonadReader (IORef LocalState) m)
+    => (LocalState -> a)
+    -> m a
+gets f = do
+  ref <- ask
+  fmap f. liftIO $ readIORef ref
+
+modify
+    :: (MonadIO m, MonadReader (IORef LocalState) m)
+    => (LocalState -> LocalState) -> m ()
+modify f = do
+  ref <- ask
+  liftIO $ modifyIORef ref f
+
+
+
 
 
 nmIsOpen :: NavMesh -> (Int, Int) -> Bool
@@ -81,17 +105,19 @@ boolMonoid = flip (bool mempty)
 runGame
     :: (LocalState, SystemState EntWorld Underlying)
     -> SystemT EntWorld Underlying a
-    -> ((LocalState, SystemState EntWorld Underlying), a)
-runGame (gs, ss) m =
-  let ((a, b), c) = flip runState gs $ yieldSystemT ss m
-   in ((c, a), b)
+    -> IO ((LocalState, SystemState EntWorld Underlying), a)
+runGame (gs, ss) m = do
+  ref <- newIORef gs
+  (ss', a) <- runReaderT (yieldSystemT ss m) ref
+  gs' <- readIORef ref
+  pure ((gs', ss'), a)
 
 
 evalGame
     :: (LocalState, SystemState EntWorld Underlying)
     -> SystemT EntWorld Underlying a
-    -> a
-evalGame = (snd .) . runGame
+    -> IO a
+evalGame = fmap (fmap snd) . runGame
 
 
 buttonLeft :: MouseButton
@@ -103,15 +129,15 @@ buttonRight = ButtonExtra 2
 
 
 entsWith
-    :: Monad m
+    :: (Monad m, MonadIO m)
     => (w ('WorldOf m) -> IM.IntMap a)
     -> SystemT w m [Ent]
 entsWith sel = do
-  E.SystemState _ w _ <- E.SystemT get
+  w <- getWorld
   pure . fmap E.Ent $ IM.keys $ sel w
 
 
-aliveEnts :: Monad m => SystemT EntWorld m [Ent]
+aliveEnts :: (Monad m, MonadIO m) => SystemT EntWorld m [Ent]
 aliveEnts = entsWith isAlive
 
 

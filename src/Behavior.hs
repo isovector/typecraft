@@ -12,6 +12,7 @@ module Behavior where
 import AbilityUtils
 import Control.Monad.Trans.Maybe
 import Overture
+import Control.Monad.Reader.Class
 
 data PsiStormCmd = PsiStormCmd V2
   deriving Typeable
@@ -213,6 +214,7 @@ instance IsLocationCommand MoveCmd where
       lift $ playAnim e [AnimWalk, AnimIdle]
       pure $ MoveCmd pp g 0
 
+
 maxStuckTime :: Time
 maxStuckTime = 0.2
 
@@ -359,7 +361,7 @@ fastInRange :: V2 -> Double -> Bool
 fastInRange dst rng = quadrance dst <= rng * rng
 
 
-findPath :: MonadState LocalState m => V2 -> V2 -> m (Maybe [V2])
+findPath :: (MonadIO m, MonadReader (IORef LocalState) m) => V2 -> V2 -> m (Maybe [V2])
 findPath src dst = do
   nm <- gets _lsNavMesh
   let dst' = dst ^. from centerTileScreen

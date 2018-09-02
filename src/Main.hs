@@ -10,7 +10,7 @@ import           Client
 import           Control.Monad.Trans.Writer (WriterT (..))
 import           Control.Monad.Writer.Class (tell)
 import qualified Data.DList as DL
-import           Data.Ecstasy.Types (Ent (..), Hooks (..))
+import           Data.Ecstasy.Types (Hooks (..))
 import qualified Data.Map as M
 import           GameData
 import           Map

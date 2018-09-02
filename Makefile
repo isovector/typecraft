@@ -3,5 +3,9 @@ all:
 	stack exec typecraft
 
 profile:
-	stack build :typecraft --work-dir=.stack-prof --profile
-	stack exec --work-dir=.stack-prof typecraft +RTS -p
+	stack build :typecraft --work-dir=.stack-prof --profile -j4
+	stack exec --work-dir=.stack-prof typecraft -- +RTS -p
+
+optimized:
+	stack build :typecraft -j4 --ghc-options="-O2"
+	stack exec typecraft

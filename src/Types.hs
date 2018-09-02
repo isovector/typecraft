@@ -6,9 +6,9 @@
 {-# LANGUAGE DeriveTraversable          #-}
 {-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE StandaloneDeriving         #-}
+{-# LANGUAGE StrictData                 #-}
 {-# LANGUAGE TemplateHaskell            #-}
 {-# LANGUAGE UndecidableInstances       #-}
-{-# OPTIONS_GHC -funbox-strict-fields   #-}
 
 module Types
   ( module Types
@@ -21,10 +21,11 @@ module Types
 
 import qualified Algorithm.Search.JumpPoint as JP
 import           Control.Lens (makeLenses, makePrisms)
+import           Control.Monad.Trans.Reader (ReaderT)
 import           Control.Monad.Coroutine
 import           Control.Monad.Coroutine.SuspensionFunctors
-import           Control.Monad.State.Strict
 import           Data.Ecstasy
+import           Data.IORef (IORef)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 import           Data.Spriter.Types
@@ -39,47 +40,47 @@ type NavMesh = JP.JumpGrid
 
 
 data Map = Map
-  { mapGeometry  :: Int -> Int -> Maybe Form
-  , mapDoodads   :: Int -> Int -> Maybe Form
-  , mapNavMesh   :: NavMesh
-  , mapWidth     :: Int
-  , mapHeight    :: Int
+  { mapGeometry  :: {-# UNPACK #-} !(Int -> Int -> Maybe Form)
+  , mapDoodads   :: {-# UNPACK #-} !(Int -> Int -> Maybe Form)
+  , mapNavMesh   :: {-# UNPACK #-} !(NavMesh)
+  , mapWidth     :: {-# UNPACK #-} !(Int)
+  , mapHeight    :: {-# UNPACK #-} !(Int)
   }
 
 
 data Mouse = Mouse
-  { mDown    :: !(MouseButton -> Bool)
-  , mUp      :: !(MouseButton -> Bool)
-  , mPress   :: !(MouseButton -> Bool)
-  , mUnpress :: !(MouseButton -> Bool)
-  , mPos     :: !V2
+  { mDown    :: {-# UNPACK #-} !(MouseButton -> Bool)
+  , mUp      :: {-# UNPACK #-} !(MouseButton -> Bool)
+  , mPress   :: {-# UNPACK #-} !(MouseButton -> Bool)
+  , mUnpress :: {-# UNPACK #-} !(MouseButton -> Bool)
+  , mPos     :: {-# UNPACK #-} !V2
   }
 
 data Keyboard = Keyboard
-  { kPress   :: !(Key -> Bool)
-  , kUnpress :: !(Key -> Bool)
-  , kPresses :: ![Key]
-  , kDown    :: !(Key -> Bool)
-  , kUp      :: !(Key -> Bool)
+  { kPress   :: {-# UNPACK #-} !(Key -> Bool)
+  , kUnpress :: {-# UNPACK #-} !(Key -> Bool)
+  , kPresses :: {-# UNPACK #-} ![Key]
+  , kDown    :: {-# UNPACK #-} !(Key -> Bool)
+  , kUp      :: {-# UNPACK #-} !(Key -> Bool)
   }
 
 
 data LocalState = LocalState
-  { _lsSelBox      :: !(Maybe V2)
-  , _lsPlayer      :: !Player
+  { _lsSelBox      :: {-# UNPACK #-} !(Maybe V2)
+  , _lsPlayer      :: {-# UNPACK #-} !Player
   , _lsTasks       :: !(IM.IntMap (Task ()))
   , _lsNewTasks    :: ![(Int, Task ())]
-  , _lsTaskId      :: !Int
+  , _lsTaskId      :: {-# UNPACK #-} !Int
   , _lsDynamic     :: !(QuadTree Ent Double)
-  , _lsMap         :: !Map
+  , _lsMap         :: {-# UNPACK #-} !Map
   , _lsNavMesh     :: !NavMesh
-  , _lsCommandCont :: !(Maybe WaitingForCommand)
+  , _lsCommandCont :: {-# UNPACK #-} !(Maybe WaitingForCommand)
   }
 
 
 data Limit a = Limit
-  { _limVal :: !a
-  , _limMax :: !a
+  { _limVal :: {-# UNPACK #-} !a
+  , _limMax :: {-# UNPACK #-} !a
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
@@ -89,13 +90,13 @@ instance Applicative Limit where
 
 
 data AttackData = AttackData
-  { _aCooldown :: Limit Time
-  , _aRange    :: Double
-  , _aClass    :: [Maybe Classification]
-  , _aTask     :: Ent -> Target -> Task ()
+  { _aCooldown :: {-# UNPACK #-} !(Limit Time)
+  , _aRange    :: {-# UNPACK #-} !(Double)
+  , _aClass    :: {-# UNPACK #-} !([Maybe Classification])
+  , _aTask     :: {-# UNPACK #-} !(Ent -> Target -> Task ())
   }
 
-type Underlying = State LocalState
+type Underlying = ReaderT (IORef LocalState) IO
 type Query = QueryT EntWorld Underlying
 
 
@@ -141,32 +142,32 @@ type Flag  f   = Component f 'Field ()
 type Field f a = Component f 'Field a
 
 data EntWorld f = World
-  { gfx            :: !(Field f Form)
-  , acqRange       :: !(Field f Double)
-  , speed          :: !(Field f Double)
-  , entSize        :: !(Component f 'Virtual Double)
-  , gridSize       :: !(Field f (Int, Int))
-  , selected       :: !(Flag f)
-  , unitType       :: !(Field f UnitType)
-  , owner          :: !(Field f Player)
-  , attacks        :: !(Field f [AttackData])
-  , isAlive        :: !(Flag f)
-  , isFlying       :: !(Flag f)
-  , classification :: !(Field f Classification)
-  , commands       :: !(Field f [CommandWidget])
-  , activePassives :: !(Field f [Command])
-  , isDepot        :: !(Flag f)
-  , animBundle     :: !(Field f AnimBundle)
+  { gfx            :: Field f Form
+  , acqRange       :: Field f Double
+  , speed          :: Field f Double
+  , entSize        :: Component f 'Virtual Double
+  , gridSize       :: Field f (Int, Int)
+  , selected       :: Flag f
+  , unitType       :: Field f UnitType
+  , owner          :: Field f Player
+  , attacks        :: Field f [AttackData]
+  , isAlive        :: Flag f
+  , isFlying       :: Flag f
+  , classification :: Field f Classification
+  , commands       :: Field f [CommandWidget]
+  , activePassives :: Field f [Command]
+  , isDepot        :: Flag f
+  , animBundle     :: Field f AnimBundle
 
-  , lifetime       :: !(Field f Time)
+  , lifetime       :: Field f Time
 
-  , art            :: !(Field f Art)
-  , pos            :: !(Component f 'Virtual V2)
-  , hp             :: !(Field f (Limit Int))
-  , currentCommand :: !(Field f Command)
-  , resourceSource :: !(Field f (Resource, Limit Int))
-  , powerup        :: !(Field f (Resource, Int))
-  , lastDir        :: !(Field f V2)
+  , art            :: Field f Art
+  , pos            :: Component f 'Virtual V2
+  , hp             :: Field f (Limit Int)
+  , currentCommand :: Field f Command
+  , resourceSource :: Field f (Resource, Limit Int)
+  , powerup        :: Field f (Resource, Int)
+  , lastDir        :: Field f V2
   }
   deriving (Generic)
 

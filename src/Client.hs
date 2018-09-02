@@ -82,7 +82,7 @@ run realState hooks initialize player update draw = do
               { pos     = VTable vgetPos vsetPos
               , entSize = VTable vgetEntSize vsetEntSize
               }
-      init = fst $ runGame (realState, (SystemState 0 world hooks)) initialize
+  init <- liftIO . fmap fst $ runGame (realState, (SystemState 0 world hooks)) initialize
 
   (game, _) <- foldmp init $ \state -> do
     -- arrs  <- sample $ arrows keyboard
@@ -90,15 +90,15 @@ run realState hooks initialize player update draw = do
     kb    <- sample keyboard
     mouse <- sample mouseB
 
-    pure $ fst $ runGame state $ do
+    liftIO . fmap fst $ runGame state $ do
       player mouse kb
       update dt
 
-  pure $ do
+  do
     state <- sample game
     mouse <- sample mouseB
-
-    pure . collage gameWidth gameHeight
+    poll . liftIO
+         . fmap (collage gameWidth gameHeight)
          . evalGame state
          $ draw mouse
 
