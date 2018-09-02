@@ -94,13 +94,12 @@ run realState hooks initialize player update draw = do
       player mouse kb
       update dt
 
-  do
+  poll $ do
     state <- sample game
     mouse <- sample mouseB
-    poll . liftIO
-         . fmap (collage gameWidth gameHeight)
-         . evalGame state
-         $ draw mouse
+    liftIO . fmap (collage gameWidth gameHeight)
+           . evalGame state
+           $ draw mouse
 
 
 loadWaiting :: Commander -> Game ()

@@ -4,6 +4,7 @@
 
 module Main where
 
+import Data.Ecstasy.Types (Ent (..))
 import           Art
 import           Behavior
 import           Client
@@ -74,8 +75,8 @@ initialize = do
       , owner    = Just $ bool neutralPlayer mePlayer mine
       }
 
---   issueUnit @AttackCmd () (Ent 0) (Ent 1)
---   issueUnit @AttackCmd () (Ent 9) (Ent 10)
+  issueUnit @AttackCmd () (Ent 0) (Ent 1)
+  issueUnit @AttackCmd () (Ent 9) (Ent 10)
 
   void $ createEntity garethProto
     { pos      = Just $ V2 450 400
