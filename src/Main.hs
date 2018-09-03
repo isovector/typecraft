@@ -8,7 +8,7 @@ import Data.Ecstasy.Types (Ent (..))
 import           Art
 import           Behavior
 import           Client
-import           Control.Monad.Trans.Writer (WriterT (..))
+import           Control.Monad.Trans.Writer.Strict (WriterT (..))
 import           Control.Monad.Writer.Class (tell)
 import qualified Data.DList as DL
 import           Data.Ecstasy.Types (Hooks (..))
@@ -353,6 +353,7 @@ draw mouse = fmap (cull . DL.toList . fst)
   pure ()
 
 
+-- TODO(sandy): ;
 main :: IO ()
 main = play config (const $ run realState hooks initialize player update draw) pure
   where

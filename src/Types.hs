@@ -40,8 +40,8 @@ type NavMesh = JP.JumpGrid
 
 
 data Map = Map
-  { mapGeometry  :: {-# UNPACK #-} !(Int -> Int -> Maybe Form)
-  , mapDoodads   :: {-# UNPACK #-} !(Int -> Int -> Maybe Form)
+  { mapGeometry  :: !(Int -> Int -> Maybe Form)
+  , mapDoodads   :: !(Int -> Int -> Maybe Form)
   , mapNavMesh   :: {-# UNPACK #-} !(NavMesh)
   , mapWidth     :: {-# UNPACK #-} !(Int)
   , mapHeight    :: {-# UNPACK #-} !(Int)
@@ -49,24 +49,24 @@ data Map = Map
 
 
 data Mouse = Mouse
-  { mDown    :: {-# UNPACK #-} !(MouseButton -> Bool)
-  , mUp      :: {-# UNPACK #-} !(MouseButton -> Bool)
-  , mPress   :: {-# UNPACK #-} !(MouseButton -> Bool)
-  , mUnpress :: {-# UNPACK #-} !(MouseButton -> Bool)
+  { mDown    :: !(MouseButton -> Bool)
+  , mUp      :: !(MouseButton -> Bool)
+  , mPress   :: !(MouseButton -> Bool)
+  , mUnpress :: !(MouseButton -> Bool)
   , mPos     :: {-# UNPACK #-} !V2
   }
 
 data Keyboard = Keyboard
-  { kPress   :: {-# UNPACK #-} !(Key -> Bool)
-  , kUnpress :: {-# UNPACK #-} !(Key -> Bool)
-  , kPresses :: {-# UNPACK #-} ![Key]
-  , kDown    :: {-# UNPACK #-} !(Key -> Bool)
-  , kUp      :: {-# UNPACK #-} !(Key -> Bool)
+  { kPress   :: !(Key -> Bool)
+  , kUnpress :: !(Key -> Bool)
+  , kPresses :: ![Key]
+  , kDown    :: !(Key -> Bool)
+  , kUp      :: !(Key -> Bool)
   }
 
 
 data LocalState = LocalState
-  { _lsSelBox      :: {-# UNPACK #-} !(Maybe V2)
+  { _lsSelBox      :: !(Maybe V2)
   , _lsPlayer      :: {-# UNPACK #-} !Player
   , _lsTasks       :: !(IM.IntMap (Task ()))
   , _lsNewTasks    :: ![(Int, Task ())]
@@ -74,13 +74,13 @@ data LocalState = LocalState
   , _lsDynamic     :: !(QuadTree Ent Double)
   , _lsMap         :: {-# UNPACK #-} !Map
   , _lsNavMesh     :: !NavMesh
-  , _lsCommandCont :: {-# UNPACK #-} !(Maybe WaitingForCommand)
+  , _lsCommandCont :: !(Maybe WaitingForCommand)
   }
 
 
 data Limit a = Limit
-  { _limVal :: {-# UNPACK #-} !a
-  , _limMax :: {-# UNPACK #-} !a
+  { _limVal :: !a
+  , _limMax :: !a
   }
   deriving (Eq, Ord, Show, Functor, Foldable, Traversable)
 
@@ -92,8 +92,8 @@ instance Applicative Limit where
 data AttackData = AttackData
   { _aCooldown :: {-# UNPACK #-} !(Limit Time)
   , _aRange    :: {-# UNPACK #-} !(Double)
-  , _aClass    :: {-# UNPACK #-} !([Maybe Classification])
-  , _aTask     :: {-# UNPACK #-} !(Ent -> Target -> Task ())
+  , _aClass    :: !([Maybe Classification])
+  , _aTask     :: !(Ent -> Target -> Task ())
   }
 
 type Underlying = ReaderT (IORef LocalState) IO

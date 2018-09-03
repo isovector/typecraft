@@ -9,3 +9,7 @@ profile:
 optimized:
 	stack build :typecraft -j4 --ghc-options="-O2"
 	stack exec typecraft
+
+core:
+	stack build :typecraft -j4 --ghc-options="-ddump-simpl -dsuppress-all"
+	find .stack-work -name '*simpl'
