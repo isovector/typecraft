@@ -60,7 +60,7 @@ run
     :: LocalState
     -> Hooks EntWorld Underlying
     -> Game ()
-    -> (Mouse -> Keyboard -> Game ())
+    -> (Time -> Mouse -> Keyboard -> Game ())
     -> (Time -> Game ())
     -> (Mouse -> Game [Form])
     -> N (B Element)
@@ -90,16 +90,23 @@ run realState hooks initialize player update draw = do
     kb    <- sample keyboard
     mouse <- sample mouseB
 
+    let cam = _lsCamera $ fst state
+        mouse' = mouse { mPos = mPos mouse + cam }
+
     liftIO . fmap fst $ runGame state $ do
-      player mouse kb
+      player dt mouse' kb
       update dt
 
   poll $ do
     state <- sample game
     mouse <- sample mouseB
+
+    let cam = _lsCamera $ fst state
+        mouse' = mouse { mPos = mPos mouse + cam }
+
     liftIO . fmap (collage gameWidth gameHeight)
            . evalGame state
-           $ draw mouse
+           $ draw mouse'
 
 
 loadWaiting :: Commander -> Game ()

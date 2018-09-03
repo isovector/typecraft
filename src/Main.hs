@@ -4,15 +4,16 @@
 
 module Main where
 
-import Data.Ecstasy.Types (Ent (..))
 import           Art
 import           Behavior
 import           Client
 import           Control.Monad.Trans.Writer.Strict (WriterT (..))
-import           Control.Monad.Writer.Class (tell)
+import           Control.Monad.Writer.Class (MonadWriter (), tell)
 import qualified Data.DList as DL
+import           Data.Ecstasy.Types (Ent (..))
 import           Data.Ecstasy.Types (Hooks (..))
 import qualified Data.Map as M
+import           Game.Sequoia.Keyboard (Key (..))
 import           GameData
 import           Map
 import           Overture hiding (init)
@@ -119,8 +120,16 @@ update dt = do
   for_ toKill deleteEntity
 
 
-player :: Mouse -> Keyboard -> Game ()
-player mouse kb = do
+player :: Time -> Mouse -> Keyboard -> Game ()
+player dt mouse kb = do
+  let scrollSpeed = 300
+  for_ [ (LeftKey, V2 (-1) 0)
+       , (RightKey, V2 1 0)
+       , (UpKey, V2 0 (-1))
+       , (DownKey, V2 0 1)
+       ] $ \(k, v) -> do
+    when (kDown kb k) $ modify $ lsCamera +~ v ^* (scrollSpeed * dt)
+
   curTT <- gets _lsCommandCont
   case curTT of
     Nothing -> playerNotWaiting mouse kb
@@ -217,9 +226,12 @@ draw :: Mouse -> Game [Form]
 draw mouse = fmap (cull . DL.toList . fst)
            . surgery runWriterT
            $ do
+
+  cam      <- gets _lsCamera
   Map {..} <- gets _lsMap
 
-  let emit a b = tell $ DL.singleton (a, b)
+  let emit :: MonadWriter (DL.DList (V2, Form)) m => V2 -> Form -> m ()
+      emit a b = tell $ DL.singleton (a - cam, b)
       screenCoords = do
         x <- [0..mapWidth]
         y <- [0..mapHeight]
@@ -304,7 +316,7 @@ draw mouse = fmap (cull . DL.toList . fst)
       Just (MoveCmd g@(_:_) _ _) <- pure $ cast cmd
       Unit <- query unitType
       let ls = defaultLine { lineColor = rgba 0 1 0 0.5 }
-      emit (V2 0 0) $ traced ls $ path $ p : g
+      emit p $ traced ls $ path $ V2 0 0 : fmap (subtract p) g
       emit (last g) $ outlined ls $ circle 5
 
     void . optional $ do
@@ -318,9 +330,11 @@ draw mouse = fmap (cull . DL.toList . fst)
   pure ()
 
 
--- TODO(sandy): ;
 main :: IO ()
-main = play config (const $ run realState hooks initialize player update draw) pure
+main =
+    play config
+         (const $ run realState hooks initialize player update draw)
+         pure
   where
     config = EngineConfig (gameWidth, gameHeight) "Typecraft"
            $ rgb 0 0 0
@@ -347,6 +361,7 @@ main = play config (const $ run realState hooks initialize player update draw) p
           , _lsMap         = theMap
           , _lsNavMesh     = mapNavMesh theMap
           , _lsCommandCont = Nothing
+          , _lsCamera      = V2 0 0
           }
 
     theMap = maps M.! "rpg2k"

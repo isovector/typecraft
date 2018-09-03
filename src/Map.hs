@@ -43,8 +43,8 @@ orderTilesets = sortBy . flip $ comparing tsInitialGid
 
 parseMap :: TiledMap -> Map
 parseMap TiledMap{..} =
-    Map (\_ _ -> Nothing)
-        (\_ _ -> Nothing)
+    Map (drawSquare ground ts)
+        (drawSquare doodads ts)
         (buildNavMesh mapWidth mapHeight collision)
         -- (NavMesh (isOpen collision)
         --        $ makeGrid mapWidth mapHeight collision)

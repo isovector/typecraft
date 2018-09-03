@@ -75,6 +75,7 @@ data LocalState = LocalState
   , _lsMap         :: {-# UNPACK #-} !Map
   , _lsNavMesh     :: !NavMesh
   , _lsCommandCont :: !(Maybe WaitingForCommand)
+  , _lsCamera      :: !V2
   }
 
 
