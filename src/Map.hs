@@ -12,20 +12,20 @@ import           Overture hiding (distance)
 getTileCrop :: Tileset -> Word32 -> Form
 getTileCrop ts = \gid ->
   let g      = fromIntegral $ gid - tsInitialGid ts
-      img    = head $ tsImages ts
-      fs     = iSource img
-      stride = iWidth img `div` tileWidth
-      crop   = Crop (g `mod` stride * tileWidth)
-                    (g `div` stride * tileHeight)
+      crop   = Crop (fromIntegral $ g `mod` stride * tileWidth)
+                    (fromIntegral $ g `div` stride * tileHeight)
                     tileWidth
                     tileHeight
-   -- TODO(sandy): probably smarter to do this shifting later, when we draw it
-   in move (negate $ V2 tileWidth tileHeight)
-    . toForm
+   in toForm
     . croppedImage crop
     $ "maps/" <> fs
+  where
+    img    = head $ tsImages ts
+    fs     = iSource img
+    stride = iWidth img `div` tileWidth
 
 
+-- TODO(sandy): this leaks memory
 drawSquare :: Layer -> [Tileset] -> Int -> Int -> Maybe Form
 drawSquare (Layer {..}) ts = \x y ->
   M.lookup (x, y) layerData <&> \(tileGid -> gid) ->
@@ -43,8 +43,8 @@ orderTilesets = sortBy . flip $ comparing tsInitialGid
 
 parseMap :: TiledMap -> Map
 parseMap TiledMap{..} =
-    Map (drawSquare ground ts)
-        (drawSquare doodads ts)
+    Map (\_ _ -> Nothing)
+        (\_ _ -> Nothing)
         (buildNavMesh mapWidth mapHeight collision)
         -- (NavMesh (isOpen collision)
         --        $ makeGrid mapWidth mapHeight collision)
@@ -79,9 +79,10 @@ maps = M.fromList $
   , "hoth"
   ]
   <&> \i -> ( i
-            , parseMap . unsafePerformIO
-                       . loadMapFile
-                       $ "maps/" <> i <> ".tmx"
+            , let !x = parseMap . unsafePerformIO
+                                . loadMapFile
+                                $ "maps/" <> i <> ".tmx"
+               in x
             )
 {-# NOINLINE maps #-}
 

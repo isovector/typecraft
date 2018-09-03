@@ -14,11 +14,11 @@ import           Linear (quadrance)
 
 
 data QuadTree k x = QuadTree
-  { qtMap     :: {-# UNPACK #-} !(Map k (V2 x))
-  , qtEntSize :: {-# UNPACK #-} !(Map k x)
-  , qtSpace   :: {-# UNPACK #-} !(Array (Int, Int) (Set k))
-  , qtBiggest :: {-# UNPACK #-} !x
-  , qtSize    :: {-# UNPACK #-} !(V2 x)
+  { qtMap     :: !(Map k (V2 x))
+  , qtEntSize :: !(Map k x)
+  , qtSpace   :: !(Array (Int, Int) (Set k))
+  , qtBiggest :: !x
+  , qtSize    :: !(V2 x)
   }
 
 
@@ -148,6 +148,7 @@ zoneBB qt (x, y) =
       , V2 (sx * (x' + 1))
            (sy * (y' + 1))
       )
+{-# INLINE zoneBB #-}
 
 
 ------------------------------------------------------------------------------
@@ -191,12 +192,14 @@ pointInRect (V2 x y) (V2 lx ly, V2 hx hy) =
       , ly <= y
       , y  <  hy
       ]
+{-# INLINE pointInRect #-}
 
 
 ------------------------------------------------------------------------------
 -- | Is a given point in a circle?
 pointInCircle :: (Ord x, Num x) => V2 x -> V2 x -> x -> Bool
 pointInCircle p1 p2 r = quadrance (p1 - p2) < r * r
+{-# INLINE pointInCircle #-}
 
 
 ------------------------------------------------------------------------------

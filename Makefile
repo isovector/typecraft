@@ -3,7 +3,7 @@ all:
 	stack exec typecraft
 
 profile:
-	stack build :typecraft --work-dir=.stack-prof --profile -j4
+	stack build :typecraft --work-dir=.stack-prof --profile -j4 --ghc-options="-rtsopts"
 	stack exec --work-dir=.stack-prof typecraft -- +RTS -p
 
 optimized:

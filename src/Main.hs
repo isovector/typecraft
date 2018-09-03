@@ -31,40 +31,6 @@ screenRect =
     buffer = 64
 
 
-separateTask :: Task ()
-separateTask = do
-  dyn0 <- lift $ gets _lsDynamic
-  let zones = QT.zones dyn0
-      howMany = 50 :: Int
-
-  forever $ for_ (zip zones $ join $ repeat [0..howMany]) $ \(zone, i) -> do
-    when (i == 0) $ void await
-    ents <- lift $ getUnitsInZone zone
-    let pairwise = do
-          e1 <- ents
-          e2 <- ents
-          guard $ fst e1 < fst e2
-          pure (e1, e2)
-    for_ pairwise $ \((e1, p1), (e2, p2)) -> do
-      zs <- lift . efor (someEnts [e1, e2]) $ do
-        Unit <- query unitType
-        s <- queryDef defSize entSize
-        pure s
-      when (length zs == 2) $ do
-        let [s1, s2] = zs
-            dist = norm $ p1 - p2
-            dir = normalize $ p1 - p2
-            s   = s1 + s2
-            halfDist = dist / 2
-        lift . when (dist < s) $ do
-          setEntity e1 unchanged
-            { pos = Set $ p1 + dir ^* halfDist
-            }
-          setEntity e2 unchanged
-            { pos = Set $ p2 - dir ^* halfDist
-            }
-
-
 initialize :: Game ()
 initialize = do
   for_ [0 .. 10] $ \i -> do
@@ -110,7 +76,6 @@ initialize = do
     , commands = Just [volcanoPassiveWidget]
     }
 
-  void $ start separateTask
   void $ start acquireTask
 
 

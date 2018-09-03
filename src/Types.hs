@@ -42,7 +42,7 @@ type NavMesh = JP.JumpGrid
 data Map = Map
   { mapGeometry  :: !(Int -> Int -> Maybe Form)
   , mapDoodads   :: !(Int -> Int -> Maybe Form)
-  , mapNavMesh   :: {-# UNPACK #-} !(NavMesh)
+  , mapNavMesh   :: !(NavMesh)
   , mapWidth     :: {-# UNPACK #-} !(Int)
   , mapHeight    :: {-# UNPACK #-} !(Int)
   }
