@@ -111,6 +111,7 @@ run realState hooks initialize player update draw = do
 
 loadWaiting :: Commander -> Game ()
 loadWaiting cmd = do
+  -- TODO(sandy): this will issue orders to units who can't use them
   sel <- getSelectedEnts
   case cmd of
     LocationCommand (Proxy2 param :: Proxy2 a V2) ->
@@ -133,6 +134,9 @@ loadWaiting cmd = do
       modify $ lsCommandCont ?~ do
         PlacementCommand . GameCont @a param $ \i ->
           for_ sel $ \e -> issuePlacement @a param e i
+
+    MenuCommand ws ->
+      modify $ lsExtraButtons ?~ ws
 
 
 vgetPos :: Ent -> Underlying (Maybe V2)

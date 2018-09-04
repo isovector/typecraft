@@ -105,7 +105,7 @@ psiStormWidget :: CommandWidget
 psiStormWidget = CommandWidget
   { cwName    = "Psi Storm"
   , cwCommand = LocationCommand $ Proxy2 @PsiStormCmd ()
-  , cwPos     = Just (Col1, Row3)
+  , cwPos     = Just (Col1, Row2)
   , cwHotkey  = Just TKey
   }
 
@@ -146,9 +146,18 @@ buildCommandCenterWidget :: CommandWidget
 buildCommandCenterWidget = CommandWidget
   { cwName    = "Build Command Center"
   , cwCommand = PlacementCommand $ Proxy2 @BuildCmd commandCenter
-  , cwPos     = Just (Col1, Row2)
+  , cwPos     = Just (Col1, Row1)
   , cwHotkey  = Just CKey
   }
+
+buildingsWidget :: CommandWidget
+buildingsWidget = CommandWidget
+  { cwName    = "Build"
+  , cwCommand = MenuCommand $ [buildCommandCenterWidget]
+  , cwPos     = Just (Col1, Row3)
+  , cwHotkey  = Just BKey
+  }
+
 
 volcanoPassiveWidget :: CommandWidget
 volcanoPassiveWidget = CommandWidget

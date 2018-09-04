@@ -7,6 +7,7 @@ module Main where
 import           Art
 import           Behavior
 import           Client
+import           Control.Monad.Reader.Class (MonadReader)
 import           Control.Monad.Trans.Writer.Strict (WriterT (..))
 import           Control.Monad.Writer.Class (MonadWriter (), tell)
 import qualified Data.DList as DL
@@ -40,7 +41,7 @@ initialize = do
     let mine = mod (round i) 2 == (0 :: Int)
     void $ createEntity marineProto
       { pos      = Just $ V2 (50 + i * 10 + bool 0 400 mine) (120 + i * 10)
-      , selected = bool Nothing (Just ()) mine
+      , selected = Nothing
       , owner    = Just $ bool neutralPlayer mePlayer mine
       }
 
@@ -65,7 +66,7 @@ initialize = do
     , owner    = Just mePlayer
     , unitType = Just Unit
     , hp       = Just $ Limit 100 100
-    , commands = Just $ buildCommandCenterWidget : psiStormWidget : stdWidgets
+    , commands = Just $ buildingsWidget : psiStormWidget : stdWidgets
     }
 
   let volPos = V2 300 300
@@ -124,6 +125,8 @@ update dt = do
 
 player :: Time -> Mouse -> Keyboard -> Game ()
 player dt mouse kb = do
+  when (kDown kb EscapeKey || kDown kb CapslockKey) unsetTT
+
   let scrollSpeed = 300
   for_ [ (LeftKey,  V2 (-1) 0)
        , (RightKey, V2 1    0)
@@ -135,34 +138,36 @@ player dt mouse kb = do
   curTT <- gets _lsCommandCont
   case curTT of
     Nothing -> playerNotWaiting mouse kb
-    Just tt ->  do
-      case tt of
-        InstantCommand (GameCont _ f) -> do
-          f ()
-          unsetTT
-        LocationCommand (GameCont _ f) ->
-          when (mPress mouse buttonLeft) $ do
-            f $ mPos mouse
+    Just tt -> case tt of
+      InstantCommand (GameCont _ f) -> do
+        f ()
+        unsetTT
+      LocationCommand (GameCont _ f) ->
+        when (mPress mouse buttonLeft) $ do
+          f $ mPos mouse
+          unless (kDown kb LeftShiftKey) unsetTT
+      UnitCommand (GameCont _ f) ->
+        when (mPress mouse buttonLeft) $ do
+          msel <- getUnitAtPoint $ mPos mouse
+          for_ msel $ \sel -> do
+            f sel
             unless (kDown kb LeftShiftKey) unsetTT
-        UnitCommand (GameCont _ f) ->
-          when (mPress mouse buttonLeft) $ do
-            msel <- getUnitAtPoint $ mPos mouse
-            for_ msel $ \sel -> do
-              f sel
-              unless (kDown kb LeftShiftKey) unsetTT
-        PlacementCommand (GameCont _ f) ->
-          when (mPress mouse buttonLeft) $ do
-            f $ mPos mouse ^. from centerTileScreen
-            unless (kDown kb LeftShiftKey) unsetTT
-        PassiveCommand _ ->
-          error "someone tried to start a passive"
+      PlacementCommand (GameCont _ f) ->
+        when (mPress mouse buttonLeft) $ do
+          f $ mPos mouse ^. from centerTileScreen
+          unless (kDown kb LeftShiftKey) unsetTT
+      PassiveCommand _ ->
+        error "someone tried to start a passive"
+      MenuCommand _ ->
+        error "someone tried to start a menu"
 
   when (mPress mouse buttonRight) unsetTT
 
 
 unsetTT :: Game ()
 unsetTT = modify
-        $ lsCommandCont .~ Nothing
+        $ (lsCommandCont .~ Nothing)
+        . (lsExtraButtons .~ Nothing)
 
 
 playerNotWaiting :: Mouse -> Keyboard -> Game ()
@@ -174,6 +179,9 @@ playerNotWaiting mouse kb = do
     -- TODO(sandy): finicky
     mp1 <- gets _lsSelBox
     for_ mp1 $ \p1 -> do
+      -- TODO(sandy): probably shouldn't unset if you keep your dude in the group
+      unsetTT
+
       lPlayer <- gets _lsPlayer
 
       modify $ lsSelBox .~ Nothing
@@ -202,8 +210,8 @@ playerNotWaiting mouse kb = do
         . issueLocation @MoveCmd () ent
         $ mPos mouse
 
-  allSel <- efor aliveEnts $ with selected >> query commands
-  z <- for (listToMaybe allSel) $ \acts -> do
+  cmds <- getActiveCommands
+  z <- for cmds $ \acts -> do
     for acts $ \act -> do
       for (cwHotkey act) $ \hk ->
         pure $ case kPress kb hk of
@@ -236,7 +244,7 @@ drawWidgets ws = move (V2 (widgetSize / 2) (widgetSize / 2)) . group $ do
           Nothing -> empty
 
   pure $ move (cs ^* (widgetSize + widgetBorder)) $ group
-    [ filled (rgb 1 0 0) $ rect widgetSize widgetSize
+    [ filled (rgb 0.3 0.3 0.3) $ rect widgetSize widgetSize
     , maybe mempty getKeyText $ cwHotkey w
     ]
 
@@ -362,7 +370,7 @@ draw mouse = fmap (cull . DL.toList . fst)
         emit p $ traced' (rgba 0.7 0 0 0.3) $ circle $ _aRange att
       emit p $ traced' (rgba 0.4 0.4 0.4 0.3) $ circle $ acq
 
-  mcmds <- fmap listToMaybe . efor (entsWith selected) $ query commands
+  mcmds <- getActiveCommands
   for_ mcmds $ \cmds -> do
     let ws = drawWidgets cmds
     emitScreen ( V2 gameWidth gameHeight
@@ -371,6 +379,17 @@ draw mouse = fmap (cull . DL.toList . fst)
                ) ws
 
   pure ()
+
+
+getActiveCommands
+    :: ( MonadIO m
+       , MonadReader (IORef LocalState) m
+       )
+    => SystemT EntWorld m (Maybe [CommandWidget])
+getActiveCommands = do
+  xcmds <- gets _lsExtraButtons
+  mcmds <- fmap listToMaybe . efor (entsWith selected) $ query commands
+  pure . getFirst $ coerce xcmds <> coerce mcmds
 
 
 main :: IO ()
@@ -395,16 +414,17 @@ main =
       }
 
     realState = LocalState
-          { _lsSelBox      = Nothing
-          , _lsPlayer      = mePlayer
-          , _lsTasks       = mempty
-          , _lsNewTasks    = []
-          , _lsTaskId      = 0
-          , _lsDynamic     = mkQuadTree (20, 20) (V2 800 600)
-          , _lsMap         = theMap
-          , _lsNavMesh     = mapNavMesh theMap
-          , _lsCommandCont = Nothing
-          , _lsCamera      = V2 0 0
+          { _lsSelBox       = Nothing
+          , _lsPlayer       = mePlayer
+          , _lsTasks        = mempty
+          , _lsNewTasks     = []
+          , _lsTaskId       = 0
+          , _lsDynamic      = mkQuadTree (20, 20) (V2 800 600)
+          , _lsMap          = theMap
+          , _lsNavMesh      = mapNavMesh theMap
+          , _lsCommandCont  = Nothing
+          , _lsCamera       = V2 0 0
+          , _lsExtraButtons = Nothing
           }
 
     theMap = maps M.! "rpg2k"

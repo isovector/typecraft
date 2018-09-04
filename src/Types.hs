@@ -67,16 +67,17 @@ data Keyboard = Keyboard
 
 
 data LocalState = LocalState
-  { _lsSelBox      :: !(Maybe V2)
-  , _lsPlayer      :: {-# UNPACK #-} !Player
-  , _lsTasks       :: !(IM.IntMap (Task ()))
-  , _lsNewTasks    :: ![(Int, Task ())]
-  , _lsTaskId      :: {-# UNPACK #-} !Int
-  , _lsDynamic     :: !(QuadTree Ent Double)
-  , _lsMap         :: {-# UNPACK #-} !Map
-  , _lsNavMesh     :: !NavMesh
-  , _lsCommandCont :: !(Maybe WaitingForCommand)
-  , _lsCamera      :: !V2
+  { _lsSelBox       :: !(Maybe V2)
+  , _lsPlayer       :: {-# UNPACK #-} !Player
+  , _lsTasks        :: !(IM.IntMap (Task ()))
+  , _lsNewTasks     :: ![(Int, Task ())]
+  , _lsTaskId       :: {-# UNPACK #-} !Int
+  , _lsDynamic      :: !(QuadTree Ent Double)
+  , _lsMap          :: {-# UNPACK #-} !Map
+  , _lsNavMesh      :: !NavMesh
+  , _lsCommandCont  :: !(Maybe WaitingForCommand)
+  , _lsCamera       :: !V2
+  , _lsExtraButtons :: !(Maybe [CommandWidget])
   }
 
 
@@ -253,6 +254,9 @@ data Commanding f where
       :: IsPlacementCommand a
       => f a (Int, Int)
       -> Commanding f
+  MenuCommand
+      :: [CommandWidget]
+      -> Commanding f
 
 instance Show (Commanding f) where
   show (LocationCommand _)  = "LocationCommand"
@@ -260,6 +264,7 @@ instance Show (Commanding f) where
   show (InstantCommand _)   = "InstantCommand"
   show (PassiveCommand _)   = "PassiveCommand"
   show (PlacementCommand _) = "PlacementCommand"
+  show (MenuCommand _)      = "MenuCommand"
 
 data Proxy2 a b = Proxy2
   { getCommandParam :: CommandParam a

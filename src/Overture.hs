@@ -453,6 +453,8 @@ isWidget (UnitCommand      (_ :: f b Ent))        = isSameType @a @b
 isWidget (InstantCommand   (_ :: f b ()))         = isSameType @a @b
 isWidget (PassiveCommand   (_ :: f b ()))         = isSameType @a @b
 isWidget (PlacementCommand (_ :: f b (Int, Int))) = isSameType @a @b
+-- TODO(sandy): should this look through the subcommands?
+isWidget (MenuCommand _)                          = False
 
 
 hasWidget :: forall a. IsCommand a => Ent -> Game Bool
