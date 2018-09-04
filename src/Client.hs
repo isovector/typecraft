@@ -1,6 +1,7 @@
 {-# LANGUAGE FlexibleContexts  #-}
 {-# LANGUAGE LambdaCase        #-}
 {-# LANGUAGE NoImplicitPrelude #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Client
   ( run
@@ -114,12 +115,14 @@ loadWaiting cmd = do
   -- TODO(sandy): this will issue orders to units who can't use them
   sel <- getSelectedEnts
   case cmd of
-    LocationCommand (Proxy2 param :: Proxy2 a V2) ->
+    LocationCommand (Proxy2 param :: Proxy2 a V2) -> do
+      modify $ lsExtraButtons ?~ [cancelWidget]
       modify $ lsCommandCont ?~ do
         LocationCommand . GameCont @a param $ \v2 ->
           for_ sel $ \e -> issueLocation @a param e v2
 
-    UnitCommand (Proxy2 param :: Proxy2 a Ent) ->
+    UnitCommand (Proxy2 param :: Proxy2 a Ent) -> do
+      modify $ lsExtraButtons ?~ [cancelWidget]
       modify $ lsCommandCont ?~ do
         UnitCommand . GameCont @a param $ \t ->
           for_ sel $ \e -> issueUnit @a param e t
@@ -130,13 +133,23 @@ loadWaiting cmd = do
     PassiveCommand (Proxy2 _ :: Proxy2 a ()) -> do
       error "someone tried to start a passive"
 
-    PlacementCommand (Proxy2 param :: Proxy2 a (Int, Int)) ->
+    PlacementCommand (Proxy2 param :: Proxy2 a (Int, Int)) -> do
+      modify $ lsExtraButtons ?~ [cancelWidget]
       modify $ lsCommandCont ?~ do
         PlacementCommand . GameCont @a param $ \i ->
           for_ sel $ \e -> issuePlacement @a param e i
 
     MenuCommand ws ->
-      modify $ lsExtraButtons ?~ ws
+      modify $ lsExtraButtons .~ fmap (cancelWidget :) ws
+
+
+cancelWidget :: CommandWidget
+cancelWidget = CommandWidget
+  { cwName    = "Cancel"
+  , cwCommand = MenuCommand Nothing
+  , cwPos     = Just (Col4, Row3)
+  , cwHotkey  = Just XKey
+  }
 
 
 vgetPos :: Ent -> Underlying (Maybe V2)

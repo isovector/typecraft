@@ -255,7 +255,7 @@ data Commanding f where
       => f a (Int, Int)
       -> Commanding f
   MenuCommand
-      :: [CommandWidget]
+      :: Maybe [CommandWidget]
       -> Commanding f
 
 instance Show (Commanding f) where

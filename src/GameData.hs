@@ -153,7 +153,7 @@ buildCommandCenterWidget = CommandWidget
 buildingsWidget :: CommandWidget
 buildingsWidget = CommandWidget
   { cwName    = "Build"
-  , cwCommand = MenuCommand $ [buildCommandCenterWidget]
+  , cwCommand = MenuCommand $ Just [buildCommandCenterWidget]
   , cwPos     = Just (Col1, Row3)
   , cwHotkey  = Just BKey
   }
