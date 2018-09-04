@@ -1,5 +1,6 @@
 {-# LANGUAGE NoImplicitPrelude #-}
 {-# LANGUAGE OverloadedLists   #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module GameData where
 
@@ -102,75 +103,75 @@ changAttackData = AttackData
 
 psiStormWidget :: CommandWidget
 psiStormWidget = CommandWidget
-  { cwName = "Psi Storm"
+  { cwName    = "Psi Storm"
   , cwCommand = LocationCommand $ Proxy2 @PsiStormCmd ()
-  , cwVisible = True
-  , cwHotkey = Just TKey
+  , cwPos     = Just (Col1, Row3)
+  , cwHotkey  = Just TKey
   }
 
 
 moveWidget :: CommandWidget
 moveWidget = CommandWidget
-  { cwName = "Move"
+  { cwName    = "Move"
   , cwCommand = LocationCommand $ Proxy2 @MoveCmd ()
-  , cwVisible = True
-  , cwHotkey = Just MKey
+  , cwPos     = Just (Col1, Row1)
+  , cwHotkey  = Just MKey
   }
 
 attackWidget :: CommandWidget
 attackWidget = CommandWidget
-  { cwName = "Attack"
+  { cwName    = "Attack"
   , cwCommand = UnitCommand $ Proxy2 @AttackCmd ()
-  , cwVisible = True
-  , cwHotkey = Just AKey
+  , cwPos     = Just (Col4, Row1)
+  , cwHotkey  = Just AKey
   }
 
 stopWidget :: CommandWidget
 stopWidget = CommandWidget
-  { cwName = "Stop"
+  { cwName    = "Stop"
   , cwCommand = InstantCommand $ Proxy2 @StopCmd ()
-  , cwVisible = True
-  , cwHotkey = Just SKey
+  , cwPos     = Just (Col2, Row1)
+  , cwHotkey  = Just SKey
   }
 
 acquireWidget :: CommandWidget
 acquireWidget = CommandWidget
-  { cwName = "Acquire"
+  { cwName    = "Acquire"
   , cwCommand = InstantCommand $ Proxy2 @AcquireCmd ()
-  , cwVisible = False
-  , cwHotkey = Nothing
+  , cwPos     = Nothing
+  , cwHotkey  = Nothing
   }
 
 buildCommandCenterWidget :: CommandWidget
 buildCommandCenterWidget = CommandWidget
-  { cwName = "Build Command Center"
+  { cwName    = "Build Command Center"
   , cwCommand = PlacementCommand $ Proxy2 @BuildCmd commandCenter
-  , cwVisible = True
-  , cwHotkey = Just CKey
+  , cwPos     = Just (Col1, Row2)
+  , cwHotkey  = Just CKey
   }
 
 volcanoPassiveWidget :: CommandWidget
 volcanoPassiveWidget = CommandWidget
-  { cwName = "Eruption"
+  { cwName    = "Eruption"
   , cwCommand = PassiveCommand $ Proxy2 @PassiveScriptCmd volcanoPassive
-  , cwVisible = False
-  , cwHotkey = Nothing
+  , cwPos     = Nothing
+  , cwHotkey  = Nothing
   }
 
 trainMarineWidget :: CommandWidget
 trainMarineWidget = CommandWidget
-  { cwName = "Train Marine"
+  { cwName    = "Train Marine"
   , cwCommand = InstantCommand $ Proxy2 @TrainCmd marineProto
-  , cwVisible = True
-  , cwHotkey = Just AKey
+  , cwPos     = Just (Col1, Row1)
+  , cwHotkey  = Just AKey
   }
 
 harvestWidget :: CommandWidget
 harvestWidget = CommandWidget
-  { cwName = "Harvest"
+  { cwName    = "Harvest"
   , cwCommand = UnitCommand $ Proxy2 @UnitScriptCmd harvestScript
-  , cwVisible = True
-  , cwHotkey = Just HKey
+  , cwPos     = Just (Col4, Row2)
+  , cwHotkey  = Just HKey
   }
 
 

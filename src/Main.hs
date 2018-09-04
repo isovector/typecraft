@@ -13,7 +13,9 @@ import qualified Data.DList as DL
 import           Data.Ecstasy.Types (Ent (..))
 import           Data.Ecstasy.Types (Hooks (..))
 import qualified Data.Map as M
+import qualified Data.Text as T
 import           Game.Sequoia.Keyboard (Key (..))
+import           Game.Sequoia.Text (plainText)
 import           GameData
 import           Map
 import           Overture hiding (init)
@@ -123,10 +125,10 @@ update dt = do
 player :: Time -> Mouse -> Keyboard -> Game ()
 player dt mouse kb = do
   let scrollSpeed = 300
-  for_ [ (LeftKey, V2 (-1) 0)
-       , (RightKey, V2 1 0)
-       , (UpKey, V2 0 (-1))
-       , (DownKey, V2 0 1)
+  for_ [ (LeftKey,  V2 (-1) 0)
+       , (RightKey, V2 1    0)
+       , (UpKey,    V2 0    (-1))
+       , (DownKey,  V2 0    1)
        ] $ \(k, v) -> do
     when (kDown kb k) $ modify $ lsCamera +~ v ^* (scrollSpeed * dt)
 
@@ -222,6 +224,36 @@ cull = fmap (uncurry move)
      . filter (flip QT.pointInRect screenRect . fst)
 
 
+getKeyText :: Key -> Form
+getKeyText = toForm . plainText . T.pack . take 1 . show
+
+
+drawWidgets :: [CommandWidget] -> Form
+drawWidgets ws = move (V2 (widgetSize / 2) (widgetSize / 2)) . group $ do
+  w  <- ws
+  cs <- case cwPos w of
+          Just c  -> pure $ toV2 $ fromEnum *** fromEnum $ c
+          Nothing -> empty
+
+  pure $ move (cs ^* (widgetSize + widgetBorder)) $ group
+    [ filled (rgb 1 0 0) $ rect widgetSize widgetSize
+    , maybe mempty getKeyText $ cwHotkey w
+    ]
+
+actionPanelSize :: V2
+actionPanelSize = toV2 ( (+ 1) . fromEnum $ maxBound @WidgetCol
+                       , (+ 1) . fromEnum $ maxBound @WidgetRow
+                       )
+               ^* (widgetSize + widgetBorder)
+
+
+widgetSize :: Num a => a
+widgetSize = 32
+
+widgetBorder :: Num a => a
+widgetBorder = 4
+
+
 draw :: Mouse -> Game [Form]
 draw mouse = fmap (cull . DL.toList . fst)
            . surgery runWriterT
@@ -230,8 +262,11 @@ draw mouse = fmap (cull . DL.toList . fst)
   cam      <- gets _lsCamera
   Map {..} <- gets _lsMap
 
-  let emit :: MonadWriter (DL.DList (V2, Form)) m => V2 -> Form -> m ()
-      emit a b = tell $ DL.singleton (a - cam, b)
+  let emitScreen :: MonadWriter (DL.DList (V2, Form)) m => V2 -> Form -> m ()
+      emitScreen a b = tell $ DL.singleton (a, b)
+
+      emit :: MonadWriter (DL.DList (V2, Form)) m => V2 -> Form -> m ()
+      emit a = emitScreen (a - cam)
       screenCoords = do
         x <- [0..mapWidth]
         y <- [0..mapHeight]
@@ -326,6 +361,14 @@ draw mouse = fmap (cull . DL.toList . fst)
       for_ atts $ \att ->
         emit p $ traced' (rgba 0.7 0 0 0.3) $ circle $ _aRange att
       emit p $ traced' (rgba 0.4 0.4 0.4 0.3) $ circle $ acq
+
+  mcmds <- fmap listToMaybe . efor (entsWith selected) $ query commands
+  for_ mcmds $ \cmds -> do
+    let ws = drawWidgets cmds
+    emitScreen ( V2 gameWidth gameHeight
+               - actionPanelSize
+               - V2 widgetBorder widgetBorder
+               ) ws
 
   pure ()
 

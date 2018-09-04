@@ -21,14 +21,15 @@ module Types
 
 import qualified Algorithm.Search.JumpPoint as JP
 import           Control.Lens (makeLenses, makePrisms)
-import           Control.Monad.Trans.Reader (ReaderT)
 import           Control.Monad.Coroutine
 import           Control.Monad.Coroutine.SuspensionFunctors
+import           Control.Monad.Trans.Reader (ReaderT)
 import           Data.Ecstasy
 import           Data.IORef (IORef)
 import qualified Data.IntMap.Strict as IM
 import qualified Data.Map.Strict as M
 import           Data.Spriter.Types
+import qualified Data.Text as T
 import           Data.Typeable
 import           Game.Sequoia
 import           Game.Sequoia.Keyboard
@@ -272,11 +273,23 @@ data GameCont a b = GameCont
 type Commander         = Commanding Proxy2
 type WaitingForCommand = Commanding GameCont
 
+data WidgetCol
+  = Col1
+  | Col2
+  | Col3
+  | Col4
+  deriving (Eq, Ord, Show, Enum, Bounded)
+
+data WidgetRow
+  = Row1
+  | Row2
+  | Row3
+  deriving (Eq, Ord, Show, Enum, Bounded)
 
 data CommandWidget = CommandWidget
-  { cwName    :: String
+  { cwName    :: T.Text
   , cwCommand :: Commander
-  , cwVisible :: Bool
+  , cwPos     :: Maybe (WidgetCol, WidgetRow)
   , cwHotkey  :: Maybe Key
   } deriving (Show)
 

@@ -238,6 +238,7 @@ instance IsCommand MoveCmd where
   pumpCommand dt e mcmd@MoveCmd{..} = do
     let gg@(g:gs) = _mcWaypoints
     ent <- getEntity e
+    -- TODO(sandy): this can crash if it's a subcommand and the unit is killed
     let Just p = pos ent
         Just s = speed ent
         sz     = maybe defSize id $ entSize ent
