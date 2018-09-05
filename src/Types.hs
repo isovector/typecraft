@@ -145,32 +145,30 @@ type Flag  f   = Component f 'Field ()
 type Field f a = Component f 'Field a
 
 data EntWorld f = World
-  { gfx            :: Field f Form
-  , acqRange       :: Field f Double
-  , speed          :: Field f Double
-  , entSize        :: Component f 'Virtual Double
-  , gridSize       :: Field f (Int, Int)
-  , selected       :: Flag f
-  , unitType       :: Field f UnitType
-  , owner          :: Field f Player
+  { acqRange       :: Field f Double
+  , activePassives :: Field f [Command]
+  , animBundle     :: Field f AnimBundle
+  , art            :: Field f Art
   , attacks        :: Field f [AttackData]
-  , isAlive        :: Flag f
-  , isFlying       :: Flag f
   , classification :: Field f Classification
   , commands       :: Field f [CommandWidget]
-  , activePassives :: Field f [Command]
-  , isDepot        :: Flag f
-  , animBundle     :: Field f AnimBundle
-
-  , lifetime       :: Field f Time
-
-  , art            :: Field f Art
-  , pos            :: Component f 'Virtual V2
-  , hp             :: Field f (Limit Int)
   , currentCommand :: Field f Command
-  , resourceSource :: Field f (Resource, Limit Int)
-  , powerup        :: Field f (Resource, Int)
+  , entSize        :: Component f 'Virtual Double
+  , gfx            :: Field f Form
+  , gridSize       :: Field f (Int, Int)
+  , hp             :: Field f (Limit Int)
+  , isAlive        :: Flag f
+  , isDepot        :: Flag f
+  , isFlying       :: Flag f
   , lastDir        :: Field f V2
+  , lifetime       :: Field f Time
+  , owner          :: Field f Player
+  , pos            :: Component f 'Virtual V2
+  , powerup        :: Field f (Resource, Int)
+  , resourceSource :: Field f (Resource, Limit Int)
+  , selected       :: Flag f
+  , speed          :: Field f Double
+  , unitType       :: Field f UnitType
   }
   deriving (Generic)
 

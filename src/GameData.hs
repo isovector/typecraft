@@ -44,7 +44,7 @@ mineralsProto = newEntity
                $ rect (tileWidth * 3) (tileHeight * 2)
   , entSize  = Just 14
   , unitType = Just Building
-  , gridSize = Just (3, 2)
+  , gridSize = Just (2, 1)
   , resourceSource = Just (Minerals, pure 1000)
   }
 
@@ -61,7 +61,7 @@ neutralPlayer = Player $ rgb 0.25 0.55 0.95
 commandCenter :: Proto
 commandCenter = newEntity
   { gfx            = Just $ toForm $ image "assets/cc.png"
-  , gridSize       = Just (4, 3)
+  , gridSize       = Just (2, 1)
   , classification = Just BuildingUnit
   , unitType       = Just Building
   , hp             = Just $ Limit 100 100

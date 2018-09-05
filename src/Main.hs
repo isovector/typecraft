@@ -76,7 +76,7 @@ initialize = do
     , owner    = Just mePlayer
     , unitType = Just Building
     , hp       = Just $ Limit 100 100
-    , gridSize = Just (10, 7)
+    , gridSize = Just (5, 3)
     , commands = Just [volcanoPassiveWidget]
     }
 
@@ -276,13 +276,16 @@ draw mouse = fmap (cull . DL.toList . fst)
       emit :: MonadWriter (DL.DList (V2, Form)) m => V2 -> Form -> m ()
       emit a = emitScreen (a - cam)
       screenCoords = do
-        x <- [0..mapWidth]
-        y <- [0..mapHeight]
+        x <- [(-1)..(gameWidth `div` tileWidth)]
+        y <- [(-1)..(gameHeight `div` tileHeight)]
         pure (x, y)
 
-  for_ screenCoords $ \(x, y) ->
-    for_ (mapGeometry x y) $ \f ->
-      emit ((x + 1, y + 1) ^. centerTileScreen) f
+  for_ screenCoords $ \(x, y) -> do
+    let (dx, dy) = cam ^. from centerTileScreen
+        x' = x + dx
+        y' = y + dy
+    for_ (mapGeometry x' y') $ \f ->
+      emit ((x' + 1, y' + 1) ^. centerTileScreen) f
 
   void . efor aliveEnts $ do
     p  <- query pos
@@ -419,7 +422,7 @@ main =
           , _lsTasks        = mempty
           , _lsNewTasks     = []
           , _lsTaskId       = 0
-          , _lsDynamic      = mkQuadTree (20, 20) (V2 800 600)
+          , _lsDynamic      = mkQuadTree (20, 20) (V2 (200 * 32) (200 * 32))
           , _lsMap          = theMap
           , _lsNavMesh      = mapNavMesh theMap
           , _lsCommandCont  = Nothing
@@ -427,5 +430,5 @@ main =
           , _lsExtraButtons = Nothing
           }
 
-    theMap = maps M.! "rpg2k"
+    theMap = maps M.! "wc2"
 

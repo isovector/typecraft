@@ -270,11 +270,11 @@ centerTileScreen = iso toScreen fromScreen
 
 
 tileWidth :: Num a => a
-tileWidth = 16
+tileWidth = 32
 
 
 tileHeight :: Num a => a
-tileHeight = 16
+tileHeight = 32
 
 halfTile :: V2
 halfTile = V2 tileWidth tileHeight ^* 0.5

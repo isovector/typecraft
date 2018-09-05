@@ -75,14 +75,12 @@ isOpen l xy = maybe True (const False) $  M.lookup xy $ layerData l
 
 maps :: M.Map String Map
 maps = M.fromList $
-  [ "rpg2k"
-  , "hoth"
-  ]
-  <&> \i -> ( i
-            , let !x = parseMap . unsafePerformIO
-                                . loadMapFile
-                                $ "maps/" <> i <> ".tmx"
-               in x
-            )
+  [ "wc2" ]
+   <&> \i -> ( i
+             , let !x = parseMap . unsafePerformIO
+                                 . loadMapFile
+                                 $ "maps/" <> i <> ".tmx"
+                in x
+             )
 {-# NOINLINE maps #-}
 

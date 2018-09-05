@@ -369,7 +369,7 @@ findPath src dst = do
       thepath = nmFind nm (src ^. from centerTileScreen)
                           dst'
   pure $ if nmIsOpen nm dst'
-     then thepath <&> fmap ((+ halfTile) . view centerTileScreen)
+     then thepath <&> fmap ((+ halfTile) . view centerTileScreen) . drop 1
      else Nothing
 
 
