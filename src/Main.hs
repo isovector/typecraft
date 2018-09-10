@@ -40,7 +40,7 @@ initialize = do
   for_ [0 .. 10] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
     void $ createEntity marineProto
-      { pos      = Just $ V2 (50 + i * 10 + bool 0 400 mine) (120 + i * 10)
+      { pos      = Just $ V2 (50 + i * 10 + bool 0 500 mine) (120 + i * 10)
       , selected = Nothing
       , owner    = Just $ bool neutralPlayer mePlayer mine
       }
@@ -69,21 +69,8 @@ initialize = do
     , commands = Just $ buildingsWidget : psiStormWidget : stdWidgets
     }
 
-  let volPos = V2 300 300
-  void $ createEntity newEntity
-    { pos      = Just volPos
-    , gfx      = Just $ scale 0.4 $ toForm $ image "assets/volcano.png"
-    , owner    = Just mePlayer
-    , unitType = Just Building
-    , hp       = Just $ Limit 100 100
-    , gridSize = Just (5, 3)
-    , commands = Just [volcanoPassiveWidget]
-    }
-
+  join $ gets $ mapSetup . _lsMap
   void $ start acquireTask
-
-
-
 
 
 acquireTask :: Task ()

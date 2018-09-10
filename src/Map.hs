@@ -3,6 +3,7 @@
 
 module Map where
 
+import GameData
 import qualified Algorithm.Search.JumpPoint as JP
 import qualified Data.Map as M
 import           Data.Tiled
@@ -50,13 +51,25 @@ parseMap TiledMap{..} =
         --        $ makeGrid mapWidth mapHeight collision)
         mapWidth
         mapHeight
+        (buildDudesLayer me)
   where
     getLayer name = maybe (error $ "no " <> name <> " layer") id
                   $ find ((== name) . layerName) mapLayers
     ground    = getLayer "ground"
     doodads   = getLayer "doodads"
     collision = getLayer "collision"
+    me        = getLayer "me"
     ts = orderTilesets mapTilesets
+
+
+buildDudesLayer :: Layer -> Game ()
+buildDudesLayer l = do
+  for_ (layerObjects l) $ \Object{..} ->
+    createEntity $ (protos M.! read (fromJust objectType))
+      { pos   = Just $ V2 objectX objectY
+      , owner = Just mePlayer
+      }
+
 
 buildNavMesh :: Int -> Int -> Layer -> NavMesh
 buildNavMesh w h l =

@@ -46,6 +46,7 @@ data Map = Map
   , mapNavMesh   :: !(NavMesh)
   , mapWidth     :: {-# UNPACK #-} !(Int)
   , mapHeight    :: {-# UNPACK #-} !(Int)
+  , mapSetup     :: Game ()
   }
 
 

@@ -4,11 +4,40 @@
 
 module GameData where
 
-import AbilityUtils
-import AnimBank
-import Behavior
-import Behavior.Scripts
-import Overture
+import           AbilityUtils
+import           AnimBank
+import           Behavior
+import           Behavior.Scripts
+import qualified Data.Map as M
+import           Overture
+
+data ProtoType
+  = MarineProto
+  | GarethProto
+  | MineralsProto
+  | CCProto
+  | VolcanoProto
+  deriving (Eq, Ord, Show, Enum, Bounded, Read)
+
+
+protos :: M.Map ProtoType Proto
+protos = M.fromList
+  [ (MarineProto,   marineProto)
+  , (GarethProto,   garethProto)
+  , (MineralsProto, mineralsProto)
+  , (CCProto,       ccProto)
+  , (VolcanoProto,  volcanoProto)
+  ]
+
+
+volcanoProto :: Proto
+volcanoProto = newEntity
+  { gfx      = Just $ scale 0.4 $ toForm $ image "assets/volcano.png"
+  , unitType = Just Building
+  , hp       = Just $ Limit 100 100
+  , gridSize = Just (5, 3)
+  , commands = Just [volcanoPassiveWidget]
+  }
 
 
 marineProto :: Proto
@@ -58,8 +87,8 @@ neutralPlayer :: Player
 neutralPlayer = Player $ rgb 0.25 0.55 0.95
 
 
-commandCenter :: Proto
-commandCenter = newEntity
+ccProto :: Proto
+ccProto = newEntity
   { gfx            = Just $ toForm $ image "assets/cc.png"
   , gridSize       = Just (2, 1)
   , classification = Just BuildingUnit
@@ -145,7 +174,7 @@ acquireWidget = CommandWidget
 buildCommandCenterWidget :: CommandWidget
 buildCommandCenterWidget = CommandWidget
   { cwName    = "Build Command Center"
-  , cwCommand = PlacementCommand $ Proxy2 @BuildCmd commandCenter
+  , cwCommand = PlacementCommand $ Proxy2 @BuildCmd ccProto
   , cwPos     = Just (Col1, Row1)
   , cwHotkey  = Just CKey
   }
