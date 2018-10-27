@@ -114,13 +114,13 @@ gunAttackData = AttackData
 
 changAttackData :: AttackData
 changAttackData = AttackData
-  { _aCooldown = Limit 0 2
+  { _aCooldown = Limit 0 0.05
   , _aRange    = 150
   , _aClass    = [Nothing]
   , _aTask     = missile changEnt $ \v2 t -> do
       doDamage Nothing 100 v2 t
       explosion v2 1 $ \d -> scale (d + 0.01)
-                           . filled (rgba 1 0 0 $ 1 - d / 2)
+                           . filled (rgba 0 1 0 $ 1 - d / 2)
                            . circle
                            $ 8 + d * 3
   }

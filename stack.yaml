@@ -6,8 +6,8 @@ packages:
   - '../bones'
   - extra-dep: true
     location:
-      git: https://github.com/isovector/htiled.git
-      commit: bb18e7dd85b3f1fe8f9e339f8e6b8ea942bbe361
+      git: https://github.com/chrra/htiled.git
+      commit: a0b473676b73bfa172899499c8ba6b0dc6b16a1f
   - extra-dep: true
     location:
       git: https://github.com/schell/aeson-tiled.git

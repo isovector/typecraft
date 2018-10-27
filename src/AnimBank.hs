@@ -21,8 +21,8 @@ garethSchema =
 
 
 __garethIdle :: CannedAnim
-__garethIdle = CannedAnim garethSchema "gareth" "idle" 80 True 0.05
+__garethIdle = CannedAnim garethSchema "gareth" "idle" 80 True 0.1
 
 __garethAttack :: CannedAnim
-__garethAttack = CannedAnim garethSchema "gareth" "attack" 80 True 0.05
+__garethAttack = CannedAnim garethSchema "gareth" "attack" 400 True 0.1
 

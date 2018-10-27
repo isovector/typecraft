@@ -37,19 +37,19 @@ screenRect =
 
 initialize :: Game ()
 initialize = do
-  for_ [0 .. 10] $ \i -> do
+  for_ [0 .. 50] $ \i -> do
     let mine = mod (round i) 2 == (0 :: Int)
     void $ createEntity marineProto
-      { pos      = Just $ V2 (50 + i * 10 + bool 0 500 mine) (120 + i * 10)
+      { pos      = Just $ V2 (i * 10 + bool 0 550 mine) (120 + i * 10)
       , selected = Nothing
-      , owner    = Just $ bool neutralPlayer mePlayer mine
+      , owner    = Just $ neutralPlayer -- bool neutralPlayer mePlayer mine
       }
 
-  issueUnit @AttackCmd () (Ent 0) (Ent 1)
-  issueUnit @AttackCmd () (Ent 9) (Ent 10)
+--   issueUnit @AttackCmd () (Ent 0) (Ent 1)
+--   issueUnit @AttackCmd () (Ent 9) (Ent 10)
 
   void $ createEntity garethProto
-    { pos      = Just $ V2 450 400
+    { pos      = Just $ V2 450 350
     , owner    = Just mePlayer
     }
 

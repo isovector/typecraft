@@ -66,7 +66,7 @@ buildDudesLayer :: Layer -> Game ()
 buildDudesLayer l = do
   for_ (layerObjects l) $ \Object{..} ->
     createEntity $ (protos M.! read (fromJust objectType))
-      { pos   = Just $ V2 objectX objectY
+      { pos   = Just $ V2 (fromIntegral objectX) (fromIntegral objectY)
       , owner = Just mePlayer
       }
 
