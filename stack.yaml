@@ -1,26 +1,25 @@
 flags: {}
+
 packages:
-  - '.'
-  - '../ecstasy'
-  - '../sequoia'
-  - '../bones'
-  - extra-dep: true
-    location:
-      git: https://github.com/chrra/htiled.git
-      commit: a0b473676b73bfa172899499c8ba6b0dc6b16a1f
-  - extra-dep: true
-    location:
-      git: https://github.com/schell/aeson-tiled.git
-      commit: 32fa27eb3313723062cbc771539c101ad3e5f0af
+- .
 
 extra-deps:
-  - sdl2-2.3.0
-  - frpnow-0.18
-  - recursion-schemes-5.0.2
-  - astar-0.3.0.0
-  - aeson-1.2.2.0
-  - th-abstraction-0.2.6.0
-  - transformers-0.5.5.0
-  - jps-0.1.0.0
+  - astar-0.3.0.0@sha256:8bf6350542e9db9451490e8993560ee843dc48a61d46a206985430f9b62461c8,967
+  - frpnow-0.18@sha256:8ae06f109b40437ebcfed87af8325cec0b348952b6b18d44b5f59a0f54a3372e,986
+  - jps-0.1.0.0@sha256:6fd550edffe69bc4061d1e0f3f00b951c1b6fa4c4d2426fd151ea25374c975c2,1142
+  - git: https://github.com/isovector/ecstasy.git
+    commit: d6970c42b7b58090c01fbe84726425b249c9fb6d
+  - git: https://github.com/isovector/sequoia.git
+    commit: 28924ba58198a69b20ccdffeff12767c6dc062d5
+  - git: https://github.com/isovector/bones.git
+    commit: 00373ad3a05b2e7e2cd1760f0618affd3be45001
+  - git: https://github.com/chrra/htiled.git
+    commit: a0b473676b73bfa172899499c8ba6b0dc6b16a1f
+  - git: https://github.com/schell/aeson-tiled.git
+    commit: 32fa27eb3313723062cbc771539c101ad3e5f0af
 
 resolver: lts-11.9
+
+nix:
+  enable: true
+  packages: [pkgconfig, cairo, glib, pango, SDL2, zlib]

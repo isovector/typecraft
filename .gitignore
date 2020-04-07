@@ -6,3 +6,4 @@ dist/
 /run
 TAGS
 *.prof
+stack.yaml.lock

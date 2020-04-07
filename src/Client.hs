@@ -70,8 +70,8 @@ run realState hooks initialize player update draw = do
 
   keyboard <- do
     kb <- getKeyboard
-    oldKb <- sample $ delayTime clock [] kb
-    pure $ getKB kb oldKb
+    oldKb <- sample $ delayTime clock [] (S.toList <$> kb)
+    pure $ getKB (S.toList <$> kb) oldKb
 
   mouseB <- do
     mb    <- mouseButtons
